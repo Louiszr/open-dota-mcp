@@ -1,23 +1,26 @@
 <!--
 Sync Impact Report
 ==================
-- Version change: 1.0.0 → 1.1.0
-  (MINOR — materially expands upstream resilience and implementation QA mandates)
+- Version change: 1.1.0 → 1.2.0
+  (MINOR — materially expands agent-friendly MCP response design mandates)
 - Modified principles:
-  - III. OpenDota API Compliance → expanded with bounded retry and backoff rules
-  - IV. Risk-Based Testing Discipline → expanded with retry-path test coverage
-  - Development Workflow → expanded with independent implementation QA gate
+  - VII. Standards-Based MCP Interoperability → Agent-Friendly, Standards-Based
+    MCP Interoperability
+  - IV. Risk-Based Testing Discipline → expanded with response-shaping and
+    pagination contract coverage
+  - Development Workflow → expanded with agent-ergonomics design and review gates
 - Added sections: none
 - Removed sections: none
 - Templates and runtime guidance requiring updates:
   - .specify/templates/plan-template.md ✅ updated
   - .specify/templates/spec-template.md ✅ updated
   - .specify/templates/tasks-template.md ✅ updated
+  - .agents/skills/speckit-plan/SKILL.md ✅ updated
   - .agents/skills/speckit-tasks/SKILL.md ✅ updated
-  - .agents/skills/speckit-implement/SKILL.md ✅ updated
-  - .specify/workflows/speckit/workflow.yml ✅ no changes needed
+  - Other installed .agents/skills/speckit-*/SKILL.md commands ✅ no changes needed
   - .specify/templates/checklist-template.md ✅ no changes needed
   - .specify/templates/constitution-template.md ✅ no changes needed
+  - Runtime guidance (README.md, docs/, AGENTS.md) ✅ none present
 - Follow-up TODOs: none
 -->
 
@@ -89,6 +92,9 @@ Sync Impact Report
   fixture so the default test suite remains deterministic and offline-capable.
 - API-facing MCP tool tests MUST cover successful retry recovery, exhausted retry
   budgets, `Retry-After` handling, and non-retryable failures without real delays.
+- MCP tool contract tests MUST cover the slim default response, every supported
+  response field group, invalid group selections, and pagination boundaries where
+  those capabilities apply.
 - Shared setup SHOULD use pytest fixtures, and test data MUST be explicit rather than
   hidden in unexplained magic values.
 
@@ -113,7 +119,7 @@ Sync Impact Report
 - Long or mutation-heavy loop bodies SHOULD be extracted into well-named, typed
   helpers when doing so makes the operation easier to understand and test.
 
-### VII. Standards-Based MCP Interoperability
+### VII. Agent-Friendly, Standards-Based MCP Interoperability
 
 - Tools, resources, schemas, errors, and transports MUST conform to the MCP standard
   and FastMCP's documented contracts; they MUST NOT rely on undocumented behavior of
@@ -127,6 +133,32 @@ Sync Impact Report
   diagnostics MUST use standard error or the framework's logging facilities.
 - Tool names, descriptions, parameters, returned content, and errors MUST be stable,
   unambiguous, and useful to both agents and human MCP client developers.
+- MCP tools MUST return a small, useful core response by default. A tool that can
+  return a rich or large record MUST, when technically applicable, expose a stable
+  caller-controlled selector such as `include` for opting into documented groups of
+  semantically related fields, for example
+  `include=["heroes", "player_details", "teamfight"]`. The MCP design and interface
+  contract MUST define each group and its fields. Groups MUST be cohesive,
+  independently selectable, and additive to the core response.
+- If caller-controlled response shaping is not technically applicable to a rich or
+  large response, the implementation plan MUST document the reason and the bounded
+  alternative used to protect agent context. Arbitrary raw upstream field selection
+  MUST NOT replace stable, domain-oriented groups unless the contract can preserve
+  validation and compatibility.
+- Tools returning collections with unbounded cardinality MUST use pagination. Page
+  size MUST have a documented default and maximum, and responses MUST expose
+  sufficient cursor or page metadata for an agent to request the next page without
+  replaying or parsing unrelated data.
+- Tools MUST expose focused lookup, filter, or field-group parameters when a focused
+  retrieval scenario identified in the feature specification would otherwise require
+  a large payload to obtain a small result. An agent MUST NOT need to write a response
+  to a file, invoke `jq`, or process a large JSON document merely to complete such a
+  scenario.
+- Tool descriptions MUST explain the slim default, available response groups,
+  pagination controls, limits, and relevant combinations so an agent can choose an
+  efficient response shape before invoking the tool.
+- These constraints preserve broad tool usefulness while protecting limited agent
+  context from irrelevant data and avoidable post-processing.
 
 ## Technology Stack
 
@@ -146,10 +178,14 @@ Sync Impact Report
 - All dependencies MUST be managed through uv and declared in `pyproject.toml`.
 - The project MUST be installable with `uv pip install -e .` for local development.
 - Plans MUST include a Constitution Check covering OpenDota contract research, required
-  public-surface tests, code-quality gates, and MCP/Codex interoperability.
+  public-surface tests, code-quality gates, agent-friendly response shaping and
+  pagination, and MCP/Codex interoperability.
 - CI MUST run `ruff check`, `ruff format --check`, and the complete pytest suite.
 - Changes to a public MCP tool MUST include or update its tests and user-facing schema
   or documentation in the same change.
+- MCP tool design and review MUST demonstrate that common focused tasks fit in a
+  bounded response, that optional field groups are semantically cohesive, and that
+  potentially large collections can be consumed incrementally.
 - Before `/speckit-implement` reports completion, an independent QA sub-agent that did
   not implement the change MUST verify that all required public-surface and risk-based
   tests are present, then run Ruff linting, Ruff format checking, and the complete
@@ -175,4 +211,4 @@ Sync Impact Report
   and pull request. An exception does not amend the constitution or establish precedent.
 - Compliance MUST be re-evaluated when plans change and before a release is merged.
 
-**Version**: 1.1.0 | **Ratified**: 2026-07-15 | **Last Amended**: 2026-07-15
+**Version**: 1.2.0 | **Ratified**: 2026-07-15 | **Last Amended**: 2026-07-15

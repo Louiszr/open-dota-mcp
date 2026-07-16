@@ -149,6 +149,13 @@ implementation and deterministic test tasks for retryable-error classification,
 bounded increasing backoff with jitter, `Retry-After`, safe retries, successful
 recovery, and retry exhaustion.
 
+**Agent-friendly MCP responses follow the constitution**: For MCP tools with rich
+records or potentially large collections, generate implementation, contract,
+documentation, and deterministic test tasks for slim defaults, cohesive opt-in field
+groups, invalid selections, focused lookup/filter inputs, bounded page sizes,
+continuation metadata, and terminal pages. If response shaping is inapplicable,
+generate a task to document the reason and verify the bounded alternative.
+
 **Independent QA is mandatory**: Add a final task requiring a sub-agent that did not
 perform implementation to verify required tests and run Ruff lint, Ruff format check,
 and pytest. The implementation task list cannot be complete until this QA task passes.

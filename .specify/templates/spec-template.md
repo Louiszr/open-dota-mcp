@@ -94,6 +94,13 @@
   caller deadlines or cancellation, and the error surfaced after exhaustion.
   State authentication as N/A unless the selected OpenDota endpoint documents a
   requirement; do not assume OAuth.
+  For rich responses, define the slim core fields and cohesive, caller-selectable
+  field groups (for example, an `include` parameter), including invalid-selection
+  behavior. For potentially large collections, define pagination inputs, default and
+  maximum page sizes, continuation metadata, and terminal-page behavior. Specify
+  focused lookup or filtering for common tasks that would otherwise require agents
+  to retrieve and process a large JSON response. If response shaping is inapplicable,
+  state why and define the bounded alternative.
 -->
 
 - **FR-001**: System MUST [specific capability, e.g., "allow users to create accounts"]

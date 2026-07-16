@@ -55,6 +55,11 @@
 - **Interoperability**: Does the design use standard MCP/FastMCP contracts, keep
   stdio protocol output clean, and include Codex-compatible validation without
   relying on Codex-only behavior?
+- **Agent ergonomics**: Does each rich response define a slim core plus documented,
+  cohesive opt-in field groups when applicable? Do potentially large collections
+  have bounded pagination, and can common focused tasks avoid large JSON payloads?
+  If response shaping is inapplicable, does the plan document why and identify the
+  bounded alternative?
 
 ## Project Structure
 
