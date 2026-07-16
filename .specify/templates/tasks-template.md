@@ -86,7 +86,7 @@ Examples of foundational tasks (adjust based on your project):
 
 > **NOTE: Write these tests before or alongside implementation; do not defer them**
 
-- [ ] T011 [P] [US1] Contract test for [endpoint] in tests/contract/test_[name].py
+- [ ] T011 [P] [US1] Contract test for slim defaults, response groups, invalid selections, and pagination boundaries where applicable in tests/contract/test_[name].py
 - [ ] T012 [P] [US1] Test transient recovery and exhausted retries without real delays in tests/unit/test_retries.py
 
 ### Implementation for User Story 1
@@ -94,7 +94,7 @@ Examples of foundational tasks (adjust based on your project):
 - [ ] T013 [P] [US1] Create [Entity1] model in src/models/[entity1].py
 - [ ] T014 [P] [US1] Create [Entity2] model in src/models/[entity2].py
 - [ ] T015 [US1] Implement [Service] in src/services/[service].py (depends on T013, T014)
-- [ ] T016 [US1] Implement [endpoint/feature] in src/[location]/[file].py
+- [ ] T016 [US1] Implement slim core response, cohesive opt-in field groups, focused filters, and bounded pagination where applicable in src/[location]/[file].py
 - [ ] T017 [US1] Add validation and error handling
 - [ ] T018 [US1] Add logging for user story 1 operations
 

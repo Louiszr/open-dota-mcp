@@ -143,6 +143,11 @@ Command ends after Phase 1 design. Report branch, IMPL_PLAN path, and generated 
    - Identify what interfaces the project exposes to users or other systems
    - Document the contract format appropriate for the project type
    - Examples: public APIs for libraries, command schemas for CLI tools, endpoints for web services, grammars for parsers, UI contracts for applications
+   - For MCP tools, document the slim core response, cohesive opt-in field groups,
+     invalid selector behavior, focused lookup/filter inputs, and bounded pagination
+     controls and continuation metadata where applicable
+   - If a rich MCP response cannot support caller-controlled shaping, record why and
+     document the bounded alternative that protects agent context
    - Skip if project is purely internal (build scripts, one-off tools, etc.)
 
 3. **Create quickstart validation guide** → `quickstart.md`:
