@@ -21,9 +21,9 @@ def tournament_match(match_id: int, started: int) -> dict[str, Any]:
         "start_time": started,
         "leagueid": 10,
         "radiant_team_id": 1,
-        "radiant_name": "Radiant",
+        "radiant_team_name": "Radiant",
         "dire_team_id": 2,
-        "dire_name": "Dire",
+        "dire_team_name": "Dire",
         "radiant_win": match_id % 2 == 0,
         "radiant_score": 30,
         "dire_score": 20,
@@ -54,6 +54,8 @@ async def test_id_exact_name_ambiguity_ineligible_and_empty() -> None:
     assert by_id.league.league_id == 10
     assert len(by_id.matches) == 20
     assert by_id.matches[0].match_id == 205
+    assert by_id.matches[0].radiant_team.name == "Radiant"
+    assert by_id.matches[0].dire_team.name == "Dire"
     exact = await service.list_tournament_matches(tournament_name="dreamleague-season 30")
     assert exact.league.league_id == 10
     ambiguous = await service.list_tournament_matches(tournament_name="dreamleague")

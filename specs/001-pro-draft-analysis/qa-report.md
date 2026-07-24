@@ -35,7 +35,7 @@ cleaned up afterward.
 - Public type/docstring AST audit: PASS after remediation.
 - Ruff lint: PASS.
 - Ruff format: PASS.
-- Offline pytest suite: PASS (61 tests after first-round QA remediation).
+- Offline pytest suite: PASS (63 tests after the endpoint-shape regression fixes).
 
 ## Independent QA (T047)
 
@@ -60,3 +60,17 @@ Final independent rerun by `/root/independent_qa`: **PASS**.
 The unprefixed `uv run` attempt could not access the agent sandbox's default uv cache;
 the independent rerun therefore used a fresh private cache under `/private/tmp` without
 changing any project dependency or test behavior.
+
+## Endpoint-shape remediation QA (T048)
+
+Independent final review by `/root/independent_qa`: **PASS**.
+
+- Required-test review: PASS. Compact team-match coverage directly asserts selected side and
+  opponent ID/name; league-match coverage directly asserts the route-specific team-name fields;
+  patch coverage directly asserts that ID `0` resolves to `6.70`; compatibility coverage for
+  the previously accepted full-side team shape remains.
+- Endpoint research review: PASS. Official source and independent live samples confirmed the
+  documented top-level shapes and consumed fields for all nine endpoints.
+- `uv run ruff check .`: exit 0, all checks passed.
+- `uv run ruff format --check .`: exit 0, 55 files already formatted.
+- `uv run pytest`: exit 0, 63 tests passed in 1.93 seconds.

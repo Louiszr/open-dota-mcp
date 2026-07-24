@@ -240,10 +240,12 @@ def _tournament_records(
                     tier=league.tier,
                 ),
                 radiant_team=TeamIdentity(
-                    team_id=_integer(raw.get("radiant_team_id")), name=raw.get("radiant_name")
+                    team_id=_integer(raw.get("radiant_team_id")),
+                    name=raw.get("radiant_team_name") or raw.get("radiant_name"),
                 ),
                 dire_team=TeamIdentity(
-                    team_id=_integer(raw.get("dire_team_id")), name=raw.get("dire_name")
+                    team_id=_integer(raw.get("dire_team_id")),
+                    name=raw.get("dire_team_name") or raw.get("dire_name"),
                 ),
                 winner=(Winner.RADIANT if radiant_win else Winner.DIRE)
                 if isinstance(radiant_win, bool)
@@ -265,12 +267,9 @@ def _team_records(
 ) -> list[TeamMatchSummary]:
     records: list[TeamMatchSummary] = []
     for raw, conflict in _collapse_duplicates(raw_matches):
-        radiant_id = _integer(raw.get("radiant_team_id"))
-        dire_id = _integer(raw.get("dire_team_id"))
-        appearances = [radiant_id == team.team_id, dire_id == team.team_id]
-        if sum(appearances) != 1:
+        selected_side = _team_match_side(raw, team.team_id)
+        if selected_side is None:
             continue
-        selected_side = Side.RADIANT if appearances[0] else Side.DIRE
         started = utc_datetime(raw.get("start_time"))
         if start and (started is None or started.date() < start):
             continue
@@ -285,10 +284,7 @@ def _team_records(
             continue
         if filters.result and filters.result != selected_result:
             continue
-        opponent = TeamIdentity(
-            team_id=dire_id if selected_side == Side.RADIANT else radiant_id,
-            name=raw.get("dire_name") if selected_side == Side.RADIANT else raw.get("radiant_name"),
-        )
+        opponent = _team_match_opponent(raw, selected_side)
         warnings = _record_warnings(raw, conflict)
         records.append(
             TeamMatchSummary(
@@ -312,16 +308,7 @@ def _team_records(
 
 
 def _anomalous_side_warning(raw_matches: list[dict[str, Any]], team_id: int) -> DataWarning | None:
-    anomalous = any(
-        sum(
-            [
-                _integer(raw.get("radiant_team_id")) == team_id,
-                _integer(raw.get("dire_team_id")) == team_id,
-            ]
-        )
-        != 1
-        for raw in raw_matches
-    )
+    anomalous = any(_team_match_side(raw, team_id) is None for raw in raw_matches)
     return (
         DataWarning(
             code="anomalous_team_side",
@@ -329,6 +316,40 @@ def _anomalous_side_warning(raw_matches: list[dict[str, Any]], team_id: int) -> 
         )
         if anomalous
         else None
+    )
+
+
+def _team_match_side(raw: dict[str, Any], team_id: int | None) -> Side | None:
+    """Resolve the selected team's side from the documented team-match projection."""
+    radiant = raw.get("radiant")
+    opponent_id = _integer(raw.get("opposing_team_id"))
+    if isinstance(radiant, bool):
+        if team_id is not None and opponent_id == team_id:
+            return None
+        return Side.RADIANT if radiant else Side.DIRE
+
+    radiant_id = _integer(raw.get("radiant_team_id"))
+    dire_id = _integer(raw.get("dire_team_id"))
+    appearances = [radiant_id == team_id, dire_id == team_id]
+    if sum(appearances) != 1:
+        return None
+    return Side.RADIANT if appearances[0] else Side.DIRE
+
+
+def _team_match_opponent(raw: dict[str, Any], selected_side: Side) -> TeamIdentity:
+    """Project the opponent from compact or full-side OpenDota match fields."""
+    if "opposing_team_id" in raw or "opposing_team_name" in raw:
+        return TeamIdentity(
+            team_id=_integer(raw.get("opposing_team_id")),
+            name=raw.get("opposing_team_name"),
+        )
+    return TeamIdentity(
+        team_id=_integer(
+            raw.get("dire_team_id") if selected_side == Side.RADIANT else raw.get("radiant_team_id")
+        ),
+        name=(raw.get("dire_team_name") or raw.get("dire_name"))
+        if selected_side == Side.RADIANT
+        else (raw.get("radiant_team_name") or raw.get("radiant_name")),
     )
 
 

@@ -4,6 +4,21 @@
     {"team_id": 2, "name": "Team Secret", "tag": "TS", "last_match_time": 1784606400},
     {"team_id": 3, "name": "Old.Name", "tag": "OLD", "last_match_time": 1784510000}
   ],
+  "team_matches": [
+    {
+      "match_id": 8896486914,
+      "radiant_win": true,
+      "radiant_score": 33,
+      "dire_score": 8,
+      "radiant": false,
+      "duration": 2463,
+      "start_time": 1784040961,
+      "leagueid": 19785,
+      "league_name": "Esports World Cup 2026",
+      "opposing_team_id": 2163,
+      "opposing_team_name": "Team Liquid"
+    }
+  ],
   "anomalies": ["neither_side", "both_sides", "missing_score", "conflicting_duplicate"],
   "mutation_match_id": 9998
 }

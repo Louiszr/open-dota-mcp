@@ -46,7 +46,7 @@ class DraftClient:
         return [{"id": 1, "localized_name": "Anti-Mage"}, {"id": 14, "localized_name": "Pudge"}]
 
     async def get_patches(self) -> list[dict[str, Any]]:
-        return [{"id": 60, "name": "7.41"}]
+        return [{"id": 0, "name": "6.70"}, {"id": 60, "name": "7.41"}]
 
     async def get_pro_players(self) -> list[dict[str, Any]]:
         return []
@@ -114,6 +114,23 @@ async def test_each_additive_group_and_all_groups() -> None:
         },
     )
     assert payload["matches"][0]["draft"]["result"]["radiant_score"] == 31
+
+
+@pytest.mark.asyncio
+async def test_zero_patch_identifier_resolves_from_documented_constants_shape() -> None:
+    fake = DraftClient()
+    original_get_match = fake.get_match
+
+    async def zero_patch_match(match_id: int) -> dict[str, Any]:
+        result = await original_get_match(match_id)
+        result["patch"] = 0
+        return result
+
+    fake.get_match = zero_patch_match  # type: ignore[method-assign]
+    payload = await call(fake, {"match_ids": [1]})
+    draft = payload["matches"][0]["draft"]
+    assert draft["patch_id"] == 0
+    assert draft["patch_version"] == "6.70"
 
 
 @pytest.mark.asyncio

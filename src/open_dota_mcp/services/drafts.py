@@ -146,12 +146,14 @@ class DraftService:
             for item in normalized[0]
             if _integer(item.get("id")) is not None and item.get("localized_name")
         }
-        patches = {
-            identifier: str(item.get("name") or item.get("patch_name"))
-            for item in normalized[1]
-            if (identifier := _integer(item.get("id") or item.get("patch"))) is not None
-            and (item.get("name") or item.get("patch_name"))
-        }
+        patches: dict[int, str] = {}
+        for item in normalized[1]:
+            identifier = _integer(item.get("id"))
+            if identifier is None:
+                identifier = _integer(item.get("patch"))
+            name = item.get("name") or item.get("patch_name")
+            if identifier is not None and name:
+                patches[identifier] = str(name)
         professionals = {
             int(item["account_id"]): str(item["name"])
             for item in normalized[2]

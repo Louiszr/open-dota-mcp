@@ -27,10 +27,9 @@ def team_match(
         "start_time": started,
         "leagueid": 10,
         "league_name": "DreamLeague",
-        "radiant_team_id": 1 if selected_radiant else 2,
-        "radiant_name": "Spirit" if selected_radiant else "Opponent",
-        "dire_team_id": 2 if selected_radiant else 1,
-        "dire_name": "Opponent" if selected_radiant else "Spirit",
+        "radiant": selected_radiant,
+        "opposing_team_id": 2,
+        "opposing_team_name": "Opponent",
         "radiant_win": radiant_win,
         "radiant_score": 30,
         "dire_score": 20,
@@ -64,6 +63,9 @@ async def test_id_name_tag_resolution_and_disambiguation() -> None:
     service = MatchDiscoveryService(TeamClient(), SnapshotRegistry())  # type: ignore[arg-type]
     by_id = await service.list_team_matches(team_id=1)
     assert by_id.team.name == "Team Spirit"
+    assert by_id.matches[0].selected_team_side == "radiant"
+    assert by_id.matches[0].opponent.team_id == 2
+    assert by_id.matches[0].opponent.name == "Opponent"
     exact = await service.list_team_matches(team_name="team-spirit")
     assert exact.team.team_id == 1
     ambiguous = await service.list_team_matches(team_name="TS")
@@ -111,13 +113,36 @@ async def test_team_relative_result_newest_first_and_snapshot_mutation() -> None
 async def test_anomalous_side_is_excluded_with_collection_warning() -> None:
     fake = TeamClient()
     anomaly = team_match(8, 1784900000)
-    anomaly["radiant_team_id"] = 1
-    anomaly["dire_team_id"] = 1
+    anomaly["opposing_team_id"] = 1
     fake.matches.append(anomaly)
     service = MatchDiscoveryService(fake, SnapshotRegistry())  # type: ignore[arg-type]
     response = await service.list_team_matches(team_id=1)
     assert 8 not in [record.match_id for record in response.matches]
     assert response.warnings[0].code == "anomalous_team_side"
+
+
+@pytest.mark.asyncio
+async def test_full_side_match_projection_remains_compatible() -> None:
+    fake = TeamClient()
+    fake.matches = [
+        {
+            "match_id": 7,
+            "start_time": 1784779200,
+            "leagueid": 10,
+            "league_name": "DreamLeague",
+            "radiant_team_id": 1,
+            "radiant_name": "Team Spirit",
+            "dire_team_id": 2,
+            "dire_name": "Opponent",
+            "radiant_win": True,
+            "radiant_score": 30,
+            "dire_score": 20,
+        }
+    ]
+    service = MatchDiscoveryService(fake, SnapshotRegistry())  # type: ignore[arg-type]
+    response = await service.list_team_matches(team_id=1)
+    assert response.matches[0].selected_team_side == "radiant"
+    assert response.matches[0].opponent.team_id == 2
 
 
 @pytest.mark.asyncio

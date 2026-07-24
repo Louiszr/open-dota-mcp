@@ -8,6 +8,52 @@
 
 **Alternatives considered**: Supplying `api_key` in the query string is officially supported but was rejected because URLs are more likely to appear in diagnostics and intermediary logs. Requiring a key was rejected because official public access works without one and the feature requires that default. `/proMatches` was rejected as the primary tournament source because it is a global recent feed and cannot guarantee complete traversal of an arbitrary league. `/leagues/{id}/matchIds` was rejected because it includes amateur leagues and lacks the compact discovery context. OpenDota Explorer/SQL was rejected as overly broad and outside the documented feature surface.
 
+## Consumed endpoint shape verification
+
+**Decision**: Treat each OpenDota route as a distinct projection, even when two routes
+describe the same match. Map only fields confirmed by both the official server source and a
+live response sampled on 2026-07-23. Keep the automated suite offline by retaining these
+verified projections as explicit fixtures.
+
+**Rationale**: OpenDota's generated schema is not sufficient by itself for every projection.
+In particular, the generated `/leagues/{league_id}/matches` response references
+`MatchObjectResponse`, whose label properties are `radiant_name` and `dire_name`, while the
+route's SQL and live payload use `radiant_team_name` and `dire_team_name`. The team-match route
+is a different, team-relative projection: it returns `radiant` for the selected team's side and
+`opposing_team_id`/`opposing_team_name`, not two full team sides. The implementation therefore
+uses route-specific field mappings and retains narrowly scoped compatibility fallbacks only for
+previously accepted fixture/full-match shapes.
+
+The verification used the official [`odota/core` generated route source](https://github.com/odota/core/blob/master/svc/api/spec.ts),
+the official [`MatchResponse` definition](https://github.com/odota/core/blob/master/svc/api/responses/MatchResponse.ts),
+and unauthenticated responses from the public deployment. The exact consumed contracts are:
+
+| Endpoint | Verified top level and consumed fields | Mapping conclusion |
+|---|---|---|
+| [`GET /matches/{match_id}`](https://api.opendota.com/api/matches/8896486914) | Object. Sample `8896486914` contained `match_id`, `start_time`, `patch`, `leagueid`, `league.name`, `radiant_team_id`, `radiant_name`, `dire_team_id`, `dire_name`, `radiant_win`, both scores, `duration`, `series_id`, `series_type`, `version`, `match_seq_num`, `picks_bans[]`, `draft_timings[]`, and `players[]`. Draft actions use `is_pick`, `hero_id`, `team`, and `order`; timing records use `order`, `extra_time`, and `total_time_taken`; player identity/side uses `account_id`, `name`, `personaname`, `hero_id`, `player_slot`, and optionally `isRadiant`. | The full-match mapping is correct. `name` is the professional name and `personaname` remains deliberately excluded. |
+| [`GET /heroes`](https://api.opendota.com/api/heroes) | Array of objects with `id` and `localized_name` (plus ignored descriptive fields). | Build the hero-label index from `id` to `localized_name`. The client's object-collection fallback is compatibility-only. |
+| [`GET /constants/patch`](https://api.opendota.com/api/constants/patch) | Array of objects with `id`, `name`, and `date`. The live catalog included `{id: 0, name: "6.70"}` and `{id: 60, name: "7.41"}`. | Build the patch-label index from `id` to `name` without truthiness checks, because zero is valid. `patch`/`patch_name` remain compatibility fallbacks. |
+| [`GET /leagues`](https://api.opendota.com/api/leagues) | Array of objects with `leagueid`, `name`, `tier`, `ticket`, and `banner`. | Resolution and eligibility correctly consume `leagueid`, `name`, and `tier`; the other fields are ignored. |
+| [`GET /leagues/{league_id}/matches`](https://api.opendota.com/api/leagues/19785/matches) | Array. Sample league `19785` returned `match_id`, `start_time`, `duration`, `leagueid`, `radiant_win`, both scores, `radiant_team_id`, `radiant_team_name`, `dire_team_id`, `dire_team_name`, `series_id`, and `series_type`. It does not provide `league_name`. | Tournament records must use `radiant_team_name`/`dire_team_name` and obtain the league label/tier from `/leagues`. This endpoint also remains the professional-membership check because the official route excludes amateur leagues. |
+| [`GET /teams?page=N`](https://api.opendota.com/api/teams?page=0) | Array of at most 1,000 objects per zero-indexed page. Records contain `team_id`, `name`, `tag`, `last_match_time`, rating/results fields, and logo metadata. | Catalog traversal and identity ranking correctly consume `team_id`, `name`, `tag`, and `last_match_time`; an empty page terminates traversal. |
+| [`GET /teams/{team_id}`](https://api.opendota.com/api/teams/2163) | One object with the same team identity/rating fields as a catalog item. | Stable-ID lookup correctly consumes `team_id`, `name`, and `tag`. |
+| [`GET /teams/{team_id}/matches`](https://api.opendota.com/api/teams/2163/matches) | Array. Sample team `2163` returned `match_id`, `radiant_win`, both scores, boolean `radiant`, `duration`, `start_time`, `leagueid`, `league_name`, `cluster`, `opposing_team_id`, `opposing_team_name`, and `opposing_team_logo`. | Side is `radiant ? radiant : dire` relative to the selected team; the opponent comes directly from `opposing_team_id`/`opposing_team_name`. Do not infer either from absent `radiant_team_id`/`dire_team_id`. |
+| [`GET /proPlayers`](https://api.opendota.com/api/proPlayers) | Array. Records contain `account_id`, professional `name`, Steam `personaname`, and team/profile metadata. | Build the fallback professional-name index from `account_id` to `name`; never substitute `personaname`. |
+
+The live samples also confirmed that all collection endpoints above return JSON arrays and that
+the two identity endpoints return JSON objects. Unknown fields remain intentionally ignored.
+Regression tests now use the compact team-match projection, the league-specific team-name
+properties, and patch ID zero so a future mapping change cannot silently reintroduce these
+shape assumptions.
+
+**Alternatives considered**: Reusing one generic match projection across full-match, league,
+and team routes was rejected because the official queries intentionally return different
+columns. Trusting only the generated component reference was rejected because its league-match
+team-label names disagree with both the route query and public response. Live-network tests in
+the default suite were rejected because they would make CI nondeterministic and consume public
+rate limits; dated live verification plus endpoint-faithful offline fixtures provides a stable
+contract gate.
+
 ## Framework and structured MCP responses
 
 **Decision**: Use current FastMCP typed async tools, Pydantic response models, generated output schemas, the in-memory FastMCP client for most protocol tests, and stdio as the runtime/default subprocess integration transport.

@@ -32,7 +32,20 @@ class JourneyClient:
         return {"team_id": team_id, "name": "Team Spirit", "tag": "TS"}
 
     async def get_team_matches(self, _team_id: int) -> list[dict[str, Any]]:
-        return [self.summary()]
+        return [
+            {
+                "match_id": 1001,
+                "start_time": 1784779200,
+                "leagueid": 10,
+                "league_name": "DreamLeague 30",
+                "radiant": True,
+                "opposing_team_id": 2,
+                "opposing_team_name": "Team Secret",
+                "radiant_win": True,
+                "radiant_score": 30,
+                "dire_score": 20,
+            }
+        ]
 
     async def get_heroes(self) -> list[dict[str, Any]]:
         return [{"id": 14, "localized_name": "Pudge"}]
@@ -48,6 +61,8 @@ class JourneyClient:
             **self.summary(),
             "match_id": match_id,
             "patch": 60,
+            "radiant_name": "Team Spirit",
+            "dire_name": "Team Secret",
             "picks_bans": [{"is_pick": False, "hero_id": 14, "team": 0, "order": 0}],
         }
 
@@ -62,9 +77,9 @@ class JourneyClient:
             "leagueid": 10,
             "league_name": "DreamLeague 30",
             "radiant_team_id": 1,
-            "radiant_name": "Team Spirit",
+            "radiant_team_name": "Team Spirit",
             "dire_team_id": 2,
-            "dire_name": "Team Secret",
+            "dire_team_name": "Team Secret",
             "radiant_win": True,
             "radiant_score": 30,
             "dire_score": 20,

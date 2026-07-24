@@ -142,7 +142,7 @@ virtual environment before `uv pip install -e .`; this was the only setup correc
 required during implementation.
 
 The following offline checks passed: editable installation, full typed server
-inspection (exactly three tools), Ruff lint and format gates, 61 unit/contract/
+inspection (exactly three tools), Ruff lint and format gates, 63 unit/contract/
 integration tests, known-ID tournament/team discovery-to-draft flows, ambiguous-name
 selection flows, snapshot mutation/replay/expiry behavior, partial and grouped draft
 responses, retry recovery/exhaustion, cancellation, and stdio operation with and

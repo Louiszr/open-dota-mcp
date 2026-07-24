@@ -147,6 +147,7 @@
 - [X] T045 Audit every public function, class, and MCP tool for complete type signatures and Google-style docstrings, remediate `src/open_dota_mcp/` and verify the configured Ruff documentation rules in `pyproject.toml`
 - [X] T046 Run the timed clean-environment `uv pip install -e .` through Codex registration and first successful invocation workflow from `specs/001-pro-draft-analysis/quickstart.md`, require completion in under 10 minutes, and record commands, environment, elapsed time, and result in `specs/001-pro-draft-analysis/qa-report.md`
 - [X] T047 Require an independent sub-agent that performed no implementation to audit all public-surface and risk-based tests, verify T045 and T046 evidence, then run `uv run ruff check .`, `uv run ruff format --check .`, and `uv run pytest`, with implementation remediation and independent re-runs until all checks pass, recording the final QA result in `specs/001-pro-draft-analysis/qa-report.md`
+- [X] T048 Verify every consumed OpenDota endpoint against official source and live response samples, document the exact upstream projections in `specs/001-pro-draft-analysis/research.md`, and add regression coverage for corrected team-match, league-match, and zero-valued patch mappings
 
 ---
 
