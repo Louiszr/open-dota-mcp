@@ -14,13 +14,14 @@ This guide is the Phase 1 acceptance/run contract. Commands become runnable afte
 From the repository root:
 
 ```bash
+uv pip install -e .
 uv sync --all-groups
 uv run ruff check .
 uv run ruff format --check .
 uv run pytest
 ```
 
-Expected outcome: dependency resolution succeeds in a clean environment; Ruff reports no violations or formatting changes; every unit, contract, integration, retry, cancellation, snapshot, and stdio test passes without contacting OpenDota or sleeping in real time.
+Expected outcome: the constitution-mandated editable installation and dependency resolution succeed in a clean environment; Ruff reports no violations or formatting changes; every unit, contract, integration, retry, cancellation, snapshot, and stdio test passes without contacting OpenDota or sleeping in real time.
 
 ## Inspect the server contract
 
@@ -78,8 +79,9 @@ Expected outcome: the known-ID workflow takes two tool calls, response sizes are
 1. Call the tournament tool with a broad `tournament_name` fixture and the team tool with a reused `team_name`/tag fixture.
 2. Verify each returns no more than 10 deterministic candidates plus a non-empty warning carrying `status: needs_selection`, with no silently selected entity.
 3. Repeat using the chosen stable ID.
+4. For each journey, pass one returned match ID to `get_pro_match_drafts`.
 
-Expected outcome: exact normalized matches resolve automatically; ambiguous substrings require the explicit second call.
+Expected outcome: exact normalized matches resolve automatically; each ambiguous discovery-to-draft journey uses no more than three tool calls: ambiguous query, stable-ID selection, and draft inspection.
 
 ### 3. Team filters
 
@@ -114,6 +116,12 @@ uv run pytest tests/unit/test_opendota_client.py -q
 Expected outcome: fixtures prove 429 `Retry-After` handling, fallback jitter, eligible timeout/5xx recovery, retry exhaustion, nonretryable failures, oversized delay rejection, and immediate cancellation with injected clock/sleeper functions and no real delays.
 
 ## Release gate
+
+### Timed clean-environment acceptance
+
+In a fresh supported environment, start a timer before following the editable-install, Codex registration, server startup, tool discovery, and one successful invocation steps above. Stop the timer after the first successful Codex tool result and record the environment, commands, result, and elapsed wall-clock time in `qa-report.md`.
+
+Expected outcome: a user following repository documentation alone completes the workflow in less than 10 minutes. A missing Codex CLI, pre-existing package cache, or undocumented setup step invalidates the run rather than being silently excluded from the result.
 
 Before implementation is reported complete, a non-implementing QA sub-agent must audit public/risk-based coverage and independently run:
 

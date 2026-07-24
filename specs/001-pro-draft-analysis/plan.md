@@ -6,7 +6,7 @@
 
 ## Summary
 
-Build a local, read-only Python 3.13 stdio MCP server with exactly three FastMCP tools: retrieve ordered drafts for 1–10 professional match IDs, page through a professional tournament's matches, and page/filter a professional team's matches. An asynchronous `httpx` client will consume only documented OpenDota endpoints, translate their permissive records into typed domain responses, retry safe transient failures within a finite budget, and keep optional credentials out of output and logs. Rich draft details use four additive field groups; collection results use a slim fixed record and short-lived in-memory snapshots so opaque continuation tokens remain deterministic even when new matches arrive. Responses silently de-duplicate requested match IDs and use sparse diagnostics: successful results omit generic status and empty warning/error fields, while non-OK status lives inside the diagnostic that explains it.
+Build a local, read-only Python 3.13 stdio MCP server with exactly three FastMCP tools: retrieve ordered drafts for 1–10 professional match IDs, page through a professional tournament's matches, and page/filter a professional team's matches. An asynchronous `httpx` client will consume only documented OpenDota endpoints without authentication by default and use the officially supported Bearer form only when an optional key is configured. It will translate permissive upstream records into typed domain responses, retry safe transient failures within a finite budget, and keep optional credentials out of output, URLs, and logs. Rich draft details use four additive field groups; collection results use a slim fixed record and short-lived in-memory snapshots so opaque continuation tokens remain deterministic even when new matches arrive. Responses silently de-duplicate requested match IDs and use sparse diagnostics: successful results omit generic status and empty warning/error fields, while non-OK status lives inside the diagnostic that explains it.
 
 ## Technical Context
 
@@ -33,9 +33,9 @@ Build a local, read-only Python 3.13 stdio MCP server with exactly three FastMCP
 *GATE: Passed before Phase 0 and re-checked after Phase 1.*
 
 - **Scope — PASS**: The design exposes only the three required read-only capabilities. It adds no UI, database, prediction, write operation, remote transport, or generalized OpenDota explorer.
-- **OpenDota contract — PASS**: `research.md` records the official OpenAPI 31.1.0 endpoints, parameters, fields, authentication model, and upstream pagination gaps. The client retries only safe GET requests on 429, eligible connection/timeout failures, and 5xx responses, with at most three attempts, bounded exponential jitter, valid `Retry-After` support, a 10-second retry-delay budget, and immediate cancellation/deadline propagation.
+- **OpenDota contract — PASS**: `research.md` records the official OpenAPI endpoints, parameters, fields, authentication model, and upstream pagination gaps, including dated references to OpenDota's generated specification and server middleware. No-key access is the default; an optional configured key uses the officially documented `Authorization: Bearer` form and never enters a request URL. The client retries only safe GET requests on 429, eligible connection/timeout failures, and 5xx responses, with at most three attempts, bounded exponential jitter, valid `Retry-After` support, a 10-second retry-delay budget, and immediate cancellation/deadline propagation.
 - **Testing — PASS**: Contract tests cover every tool's slim output, draft field groups, invalid groups, selectors, filters, pagination, ambiguity, sparse diagnostic omission, silent input de-duplication, and structured errors. Unit/integration tests cover transformations, partial data, order degradation, snapshot traversal, malformed upstream data, transient recovery, exhaustion, `Retry-After`, and cancellation without live calls or delays.
-- **Quality — PASS**: Public functions/classes/tools have complete annotations and Google-style docstrings. `pyproject.toml` configures Ruff linting, formatting, and import sorting; CI runs both Ruff gates and pytest.
+- **Quality — PASS**: Public functions/classes/tools require complete annotations and Google-style docstrings. `pyproject.toml` configures Ruff linting, formatting, import sorting, and public-docstring enforcement; a pre-QA audit checks every public API, and CI runs both Ruff gates and pytest.
 - **Independent QA — PASS (implementation gate)**: Implementation completion explicitly requires a separate non-implementing QA sub-agent to audit coverage and run `ruff check`, `ruff format --check`, and the full pytest suite after remediation.
 - **Interoperability — PASS**: FastMCP typed tools and structured outputs use standard MCP semantics. The default transport is stdio, diagnostics use stderr/framework logging, in-memory protocol tests cover discovery/invocation, and a subprocess stdio test plus documented Codex configuration verifies compatibility without Codex-only behavior.
 - **Agent ergonomics — PASS**: Drafts have a compact core and four cohesive additive groups (`competition`, `result`, `draft_timing`, `provenance`). Discovery records are already slim and therefore need no field selector; their potentially unbounded collections use 20/100 bounded pages, opaque continuation tokens, focused identity/date/side/result inputs, and concise disambiguation candidates. Successful payloads avoid redundant `status: ok`, empty warning arrays, null errors, and duplicate-input diagnostics.
@@ -54,6 +54,7 @@ specs/001-pro-draft-analysis/
 ├── research.md
 ├── data-model.md
 ├── quickstart.md
+├── qa-report.md             # Created by timed acceptance and independent QA tasks
 ├── contracts/
 │   ├── mcp-tools.md
 │   └── response-schemas.md
@@ -94,6 +95,10 @@ tests/
 ├── conftest.py
 ├── fixtures/
 │   └── opendota/
+│       ├── shared.json
+│       ├── drafts.json
+│       ├── tournaments.json
+│       └── teams.json
 ├── contract/
 │   ├── test_draft_tool.py
 │   ├── test_team_tool.py
@@ -102,6 +107,8 @@ tests/
 │   ├── test_discovery_to_draft.py
 │   └── test_stdio.py
 └── unit/
+    ├── test_config.py
+    ├── test_common_models.py
     ├── test_draft_mapping.py
     ├── test_identity_resolution.py
     ├── test_opendota_client.py
@@ -114,7 +121,7 @@ tests/
 
 ### OpenDota integration
 
-- Use one shared asynchronous `httpx.AsyncClient` with base URL `https://api.opendota.com/api`, explicit connect/read/write/pool timeouts, a descriptive user agent, and optional `Authorization: Bearer` configuration. Never include request headers or full credential-bearing URLs in diagnostics.
+- Use one shared asynchronous `httpx.AsyncClient` with base URL `https://api.opendota.com/api`, explicit connect/read/write/pool timeouts, and a descriptive user agent. Send no authentication by default. When `OPENDOTA_API_KEY` is non-empty, use OpenDota's officially supported `Authorization: Bearer <key>` form; never place the key in query parameters or include request headers, keys, or full credential-bearing URLs in diagnostics.
 - Use `GET /matches/{match_id}`, `/heroes`, `/constants/patch`, `/leagues`, `/leagues/{league_id}/matches`, `/teams?page=N`, `/teams/{team_id}`, `/teams/{team_id}/matches`, and `/proPlayers` only. Ignore unknown fields and reject malformed top-level shapes.
 - Fetch per-invocation reference catalogs only when needed. The professional-player catalog is a fallback for a missing match-record professional name; failure to enrich a usable account ID becomes a warning, not loss of the draft.
 - Treat upstream collection ordering as unspecified: normalize records, then sort by `(start_time, match_id)` descending. Silently collapse identical upstream records before filtering and snapshot creation, but emit a non-empty warning when records sharing a match ID conflict.
@@ -138,7 +145,7 @@ tests/
 
 - On a first collection call, materialize the fully normalized, filtered, sorted result set in a process-local snapshot keyed by a cryptographically random identifier. Store selector/filter fingerprint, records, page size, creation/expiry time, and next offset for 30 minutes.
 - Continuation calls may provide the token alone. If selector/filter/page-size arguments are repeated, they must match the snapshot fingerprint. Rotate the opaque token after each page so replayed or cross-tool tokens are rejected. Remove terminal, expired, superseded, and least-recently-used snapshots; expiration returns restart guidance.
-- The snapshot registry is traversal state, not a reusable upstream cache. It has no fixed record ceiling, stores only domain match summaries, and is bounded by expiry plus a small maximum count of concurrent local traversals.
+- The snapshot registry is traversal state, not a reusable upstream cache. It has no fixed record ceiling, stores only domain match summaries, and is bounded by 30-minute expiry plus a default maximum of 32 concurrent local traversals with least-recently-used eviction.
 - Successful responses and successful draft items omit generic `status`, empty `warnings`, and `error`. Expected validation, identity, pagination, eligibility, and upstream failures return a non-empty typed `error` whose nested `status` identifies the non-OK outcome alongside code, message, target, retry exhaustion, and `retryable_later`. Ambiguity returns candidates plus a non-empty `warnings` entry with nested `status: needs_selection`. Draft batch record failures remain per-match outcomes with the failure status nested in `error`; fields that have no value for that outcome are omitted rather than serialized as null placeholders. Unexpected exceptions are masked and logged to stderr.
 
 ## Complexity Tracking

@@ -1,10 +1,10 @@
 # Feature Specification: Professional Draft Analysis MCP
 
-**Feature Branch**: `main`
+**Feature Branch**: `001-pro-draft-analysis`
 
 **Created**: 2026-07-15
 
-**Status**: Draft
+**Status**: Ready for Implementation
 
 **Input**: User description: "Create a locally runnable MCP server, including initial project scaffolding, that uses OpenDota data to retrieve ordered hero picks and bans for specified professional match IDs, all available matches from a professional tournament through bounded pages, and recent matches for a professional team found by ID or name with date, side, and result filters."
 
