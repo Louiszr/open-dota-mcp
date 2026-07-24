@@ -1,0 +1,10 @@
+{
+  "leagues": [
+    {"leagueid": 10, "name": "DreamLeague Season 30", "tier": "premium"},
+    {"leagueid": 11, "name": "DreamLeague Season 29", "tier": "professional"},
+    {"leagueid": 12, "name": "Local Amateur Cup", "tier": "amateur"},
+    {"leagueid": 13, "name": null, "tier": "premium"}
+  ],
+  "empty_league_id": 13,
+  "mutation_match_id": 9999
+}

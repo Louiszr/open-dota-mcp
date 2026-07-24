@@ -14,6 +14,7 @@ This guide is the Phase 1 acceptance/run contract. Commands become runnable afte
 From the repository root:
 
 ```bash
+uv venv --python 3.13
 uv pip install -e .
 uv sync --all-groups
 uv run ruff check .
@@ -132,3 +133,17 @@ uv run pytest
 ```
 
 All three commands must pass after any remediation. The live OpenDota smoke test is supplementary and must not make the default suite network-dependent.
+
+## Offline validation record
+
+Validated on 2026-07-23 on macOS (Apple Silicon) with `uv 0.10.12`, Python 3.13+,
+FastMCP 3.4.4, and MCP 1.28.1. The clean-environment instructions now create a
+virtual environment before `uv pip install -e .`; this was the only setup correction
+required during implementation.
+
+The following offline checks passed: editable installation, full typed server
+inspection (exactly three tools), Ruff lint and format gates, 61 unit/contract/
+integration tests, known-ID tournament/team discovery-to-draft flows, ambiguous-name
+selection flows, snapshot mutation/replay/expiry behavior, partial and grouped draft
+responses, retry recovery/exhaustion, cancellation, and stdio operation with and
+without a configured key. No test contacted OpenDota or slept for a real retry delay.

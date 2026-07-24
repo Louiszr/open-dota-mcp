@@ -1,0 +1,9 @@
+{
+  "teams": [
+    {"team_id": 1, "name": "Team Spirit", "tag": "TS", "last_match_time": 1784779200},
+    {"team_id": 2, "name": "Team Secret", "tag": "TS", "last_match_time": 1784606400},
+    {"team_id": 3, "name": "Old.Name", "tag": "OLD", "last_match_time": 1784510000}
+  ],
+  "anomalies": ["neither_side", "both_sides", "missing_score", "conflicting_duplicate"],
+  "mutation_match_id": 9998
+}
