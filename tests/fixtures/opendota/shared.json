@@ -1,0 +1,11 @@
+{
+  "complete": {"match_id": 1001, "start_time": 1784779200, "leagueid": 10},
+  "partial": {"match_id": 1002, "leagueid": 10, "radiant_score": null},
+  "malformed": ["unexpected-top-level-shape"],
+  "throttled": {"status": 429, "retry_after": "1"},
+  "unavailable": {"status": 503},
+  "conflicting_duplicates": [
+    {"match_id": 1001, "radiant_score": 20},
+    {"match_id": 1001, "radiant_score": 21}
+  ]
+}
