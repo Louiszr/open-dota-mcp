@@ -6,7 +6,7 @@
 
 **Status**: Draft
 
-**Input**: User description: "Cache OpenDota responses across local MCP process and computer restarts, using a 15-minute default lifetime and an explicitly assigned 1-day lifetime for stable data, with bounded storage, shared pagination state, and cache-usage visibility."
+**Input**: User description: "Cache OpenDota responses across local MCP process and computer restarts, using a 15-minute default lifetime and an explicitly assigned 1-day lifetime for stable data, with bounded storage and cache-usage visibility. Preserve the existing process-local pagination cache."
 
 ## Clarifications
 
@@ -16,6 +16,7 @@
 - Q: If the single coordinated upstream request fails after its retry budget is exhausted, what should happen to other callers waiting for that same cache key? → A: All waiting callers receive the same final failure; a later request may retry.
 - Q: What protection should be required for cached data stored on disk? → A: Restrict access to the current operating-system user; no cache-specific encryption.
 - Q: How should full-cache removal behave when MCP processes are still running? → A: Clear safely, ignore writes from older in-flight requests, and allow later requests to repopulate.
+- Q: Should pagination snapshots and continuation tokens move into persistent shared storage with the response cache? → A: No. Keep the existing process-local pagination cache behavior; cross-process pagination does not justify persistence or rebuilding every next page from raw JSON.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -55,19 +56,19 @@ As an agent, I want changing data to refresh promptly while stable data remains 
 
 ---
 
-### User Story 3 - Share Pagination State (Priority: P3)
+### User Story 3 - Preserve Existing Pagination Behavior (Priority: P3)
 
-As an agent paging through a large result set, I want continuation state and page responses to use the same shared cache, so that pagination survives MCP restarts and does not create a second persistence model.
+As an agent paging through a large result set, I want the current in-memory snapshot behavior to remain unchanged, so that each continuation reads already-transformed snapshot records without repeatedly rebuilding pages from cached raw OpenDota JSON.
 
-**Why this priority**: Reusing the common mechanism reduces inconsistent behavior and prevents a restarted harness from needlessly replaying earlier upstream work.
+**Why this priority**: Pagination is already bounded and fit for a local MCP process. Preserving it avoids added persistence complexity and repeated transformation work for a cross-process scenario that is unlikely in this project.
 
-**Independent Test**: Begin a paginated retrieval, stop the MCP process, start a new instance, and continue with the prior continuation reference while it remains valid.
+**Independent Test**: Exercise a multi-page traversal and verify the existing 30-minute, 32-snapshot process-local registry, immutable transformed records, rotating single-use tokens, and process-restart invalidation remain unchanged after the response cache is introduced.
 
 **Acceptance Scenarios**:
 
-1. **Given** a page and its continuation state are still valid, **When** another MCP instance requests that page or continues the sequence, **Then** it can use the shared cached information without replaying prior upstream requests.
-2. **Given** pagination information has no explicit long-lived classification, **When** it is stored, **Then** it uses the default 15-minute lifetime.
-3. **Given** pagination information expires or is evicted, **When** an agent attempts to continue from it, **Then** the agent receives a clear recoverable outcome instructing it to restart the paginated retrieval.
+1. **Given** a nonterminal first page, **When** the same MCP process requests the next page, **Then** it reads the already-normalized and filtered records held by the existing process-local snapshot rather than reconstructing them from raw cached responses.
+2. **Given** an active pagination snapshot, **When** 30 minutes elapse, the 32-snapshot capacity is exceeded, or the owning MCP process stops, **Then** the continuation becomes unavailable and the agent receives the existing recoverable restart guidance.
+3. **Given** the shared response cache is cleared, unavailable, or evicts a response, **When** an already-materialized process-local pagination snapshot is continued, **Then** its traversal behavior remains independent of the response-cache lifecycle.
 
 ---
 
@@ -84,7 +85,7 @@ As a local operator, I want to see cache effectiveness and storage use, so that 
 1. **Given** cached requests have occurred, **When** the operator requests a cache summary, **Then** the system shows entry count, total storage used, configured maximum size, hits, misses, writes, expirations, and evictions.
 2. **Given** the operator requests entry details, **When** entries exist, **Then** the system shows a safe key description, freshness category, creation and expiry times, stored size, last-use time, and reuse count for each listed entry.
 3. **Given** request credentials or other secrets influence an upstream call, **When** cache information is inspected, **Then** those secrets are not displayed.
-4. **Given** the operator determines that cached content is unusable, **When** the operator invokes full-cache removal and confirms the action, **Then** all cached responses, pagination state, and usage metadata are removed together, even if MCP processes remain active.
+4. **Given** the operator determines that cached content is unusable, **When** the operator invokes full-cache removal and confirms the action, **Then** all cached responses and response-cache usage metadata are removed together, even if MCP processes remain active; independent process-local pagination snapshots are unchanged.
 5. **Given** full-cache removal completes while upstream requests are already in flight, **When** those older requests finish, **Then** their results do not repopulate the cache; requests begun after removal may populate it normally.
 
 ### Edge Cases
@@ -98,9 +99,11 @@ As a local operator, I want to see cache effectiveness and storage use, so that 
 - A response is larger than the entire configured capacity; it is returned to the caller but not retained, and existing unrelated entries are not all discarded to accommodate it.
 - Storage is full of entries currently in use by other MCP instances; cleanup does not remove an entry while it is being read or written.
 - Semantically equivalent requests express parameters in a different order; they map to the same cache identity, while requests that can produce different response content remain distinct.
+- A new GET query parameter is added without cache-specific classification; it is treated as content-altering and changes the cache identity automatically. Only a parameter on the explicit reviewed non-content-altering exclusion list, initially API-key authentication material, may be omitted.
 - A previously long-lived match response reports an unparsed game due to inconsistent upstream data; unconfirmed or unparsed data receives the safer short-lived classification.
 - An MCP software upgrade occurs while entries remain valid; the entries remain eligible for reuse because cached response content follows the OpenDota contract rather than an MCP response representation.
 - Full-cache removal races with active readers and writers; existing callers complete safely, no work started before the removal restores cleared data, and work started afterward sees the new empty-cache generation.
+- A continuation is used after its MCP process was replaced; the existing process-local registry returns recoverable restart guidance rather than attempting cross-process restoration.
 
 ## Requirements *(mandatory)*
 
@@ -114,10 +117,10 @@ As a local operator, I want to see cache effectiveness and storage use, so that 
 - **FR-006**: Long-lived entries MUST expire 1 day after successful storage, and cache reuse MUST NOT extend that expiry.
 - **FR-007**: The long-lived classification MUST explicitly include stable reference information for heroes and patch numbers and MUST allow other endpoints to be added only through an explicit, reviewable classification.
 - **FR-008**: Match-specific information MUST be long-lived only when the returned information confirms that the match is parsed; unparsed or unconfirmed match information MUST remain short-lived.
-- **FR-009**: The system MUST define cache identity from the OpenDota API version, operation, and all upstream request inputs that can affect returned content; it MUST canonicalize semantically equivalent inputs and exclude secrets from stored or displayed key descriptions.
+- **FR-009**: The system MUST define cache identity from the OpenDota API contract, operation, source/base path, path inputs, and the complete structured query-parameter mapping used to build the upstream GET URL. Every path and query parameter MUST be presumed content-altering and included by default, so an unclassified future parameter changes the identity automatically; semantically equivalent mappings MUST be canonicalized.
 - **FR-010**: The system MUST cache upstream OpenDota response content rather than MCP-shaped responses; caller-specific MCP response shaping MUST occur after either cached or newly fetched upstream content is obtained.
-- **FR-011**: Existing persisted pagination pages and continuation state MUST use this shared caching mechanism rather than a separate cache or process-local store.
-- **FR-012**: Pagination entries MUST follow the same default-short-lived and explicit-long-lived classification rules as other cached information.
+- **FR-011**: Existing pagination pages and continuation state MUST remain in the process-local pagination cache with its existing transformed snapshot representation, 30-minute lifetime, 32-traversal capacity, least-recently-used eviction, and rotating single-use token behavior.
+- **FR-012**: Shared response-cache persistence, capacity accounting, inspection, and clear operations MUST NOT store, enumerate, expire, evict, or remove pagination snapshots or continuation tokens.
 - **FR-013**: Concurrent local instances requesting an identical missing or expired entry MUST share one coordinated population attempt, including its bounded upstream retries; all waiting callers MUST receive the same completed response or the same final failure after retry exhaustion, and only a later request may begin a new coordinated attempt.
 - **FR-014**: The cache MUST have a configurable maximum on-disk size with a default of 1 GiB per local user.
 - **FR-015**: When space is required, the system MUST remove expired entries first and then the least recently used eligible entries until the cache is within its configured maximum; in-use and incomplete entries MUST be handled without exposing partial content.
@@ -132,15 +135,16 @@ As a local operator, I want to see cache effectiveness and storage use, so that 
 - **FR-024**: Cache diagnostics and inspection output MUST NOT expose OpenDota credentials, authentication material, or raw sensitive request values.
 - **FR-025**: Cache behavior MUST be identical for Codex-started MCP processes and other standards-compliant local MCP harnesses; no caller may need to keep a particular server process alive to retain cache validity.
 - **FR-026**: A new OpenDota MCP software version MUST continue to use unexpired entries without invalidating them solely because the MCP version changed.
-- **FR-027**: The local management interface MUST provide an explicitly confirmed operation that safely removes the entire shared cache, including cached responses, pagination state, and usage metadata, without requiring active MCP processes to stop; results from work started before the completed removal MUST NOT repopulate the cache, while requests started afterward MAY populate it normally.
+- **FR-027**: The local management interface MUST provide an explicitly confirmed operation that safely removes the entire shared response cache, including cached responses and usage metadata, without requiring active MCP processes to stop; results from work started before the completed removal MUST NOT repopulate the cache, while requests started afterward MAY populate it normally, and process-local pagination state MUST remain outside this operation.
 - **FR-028**: Cache data and management operations MUST be accessible only to the operating-system user who owns the cache; cache-specific encryption at rest is not required.
+- **FR-029**: A GET query parameter MAY be omitted from cache identity only when it appears in an explicit, narrowly scoped, code-reviewed non-content-altering exclusion list. The initial exclusion is API-key authentication material. Each addition MUST verify the upstream contract and add regression tests proving the deliberate equivalence; credentials and other excluded values MUST NOT appear in stored identities, safe descriptions, diagnostics, or inspection output.
 
 ### Key Entities
 
 - **Cache Entry**: Successfully obtained upstream OpenDota response content associated with a canonical request identity, freshness category, creation and absolute expiry times, stored size, last-use time, reuse count, and integrity state; it is independent of MCP response shaping.
-- **Cache Identity**: A secret-safe, canonical representation of the upstream operation and all content-affecting inputs, including response shaping and pagination inputs.
+- **Cache Identity**: A secret-safe, canonical representation of the upstream operation and all URL-building path/query inputs, with every GET parameter treated as content-altering unless explicitly reviewed onto the non-content-altering exclusion list; MCP response shaping and continuation state are excluded.
 - **Freshness Classification**: The policy assigning an entry to short-lived (default, 15 minutes) or long-lived (explicit, 1 day), including conditional classification for parsed matches.
-- **Pagination State**: A cached page or continuation record that preserves enough information for another MCP process to resume a bounded retrieval while the record remains valid.
+- **Pagination Snapshot**: Existing process-local traversal state containing normalized, filtered match summaries and opaque continuation metadata; it is deliberately independent of the shared response cache.
 - **Usage Summary**: Persistent aggregate counters and capacity information used by the local operator to evaluate cache effectiveness and health.
 
 ## Success Criteria *(mandatory)*
@@ -154,11 +158,12 @@ As a local operator, I want to see cache effectiveness and storage use, so that 
 - **SC-005**: An operator can obtain cache effectiveness and capacity information in one command in under 2 seconds for a cache containing 10,000 entries on a typical development computer.
 - **SC-006**: In inspection tests, reported hits, misses, writes, expirations, and evictions match generated events exactly, and no supplied credential appears in keys, diagnostics, or displayed metadata.
 - **SC-007**: In fault tests covering unavailable storage, interrupted writes, and corrupt entries, 100% of requests either obtain a fresh OpenDota response or return a clear upstream/cache diagnostic; none return partial or corrupt cached content.
-- **SC-008**: In pagination lifecycle tests, an agent can resume every still-valid continuation from a replacement MCP process, while every expired or evicted continuation produces a clear recoverable instruction.
-- **SC-009**: In MCP upgrade compatibility tests, 100% of unexpired entries remain reusable when the OpenDota request contract is unchanged, and a confirmed full-cache removal leaves zero cached responses, pagination records, or prior usage counters.
+- **SC-008**: Existing pagination regression tests remain unchanged and pass for 30-minute expiry, 32-snapshot capacity, immutable transformed records, token rotation/replay rejection, and restart-required behavior after process replacement.
+- **SC-009**: In MCP upgrade compatibility tests, 100% of unexpired response entries remain reusable when the OpenDota request contract is unchanged, and a confirmed full-cache removal leaves zero cached responses or prior response-cache usage counters without changing live process-local pagination snapshots.
 - **SC-010**: For 20 simultaneous equivalent requests whose coordinated upstream attempt exhausts its retry budget, all 20 callers receive the same final failure and no caller begins an independent upstream attempt; the next later request begins one new coordinated attempt.
 - **SC-011**: In supported-platform access-control tests, another non-privileged operating-system user cannot read, modify, inspect, or clear the cache owned by the test user.
 - **SC-012**: In a full-cache removal test with 20 active readers or writers, the operation completes without partial reads or process shutdowns, leaves zero prior entries or counters, rejects every write initiated before completion, and permits requests initiated afterward to populate normally.
+- **SC-013**: Identity tests show that adding or changing any unclassified GET query parameter changes the cache digest, parameter ordering does not, API-key-only changes do not, and no excluded credential appears in identity or inspection representations.
 
 ## Assumptions
 
@@ -168,6 +173,7 @@ As a local operator, I want to see cache effectiveness and storage use, so that 
 - Only successful, cache-eligible read responses are retained. Mutating operations, if introduced later, require an explicit cache invalidation design before becoming cache eligible.
 - Entries expire at a fixed time calculated when successfully stored; this feature does not provide sliding expiration or serve stale data after expiry.
 - Existing MCP response shaping, pagination boundaries, retry budgets, caller deadlines, and cancellation behavior remain authoritative. Cache lookup and population must preserve those caller-visible contracts.
+- Cross-process pagination and persistent continuation tokens are out of scope. The response cache does not replace or unify the existing process-local pagination cache because doing so would add persistence primarily for an unlikely local-MCP process handoff and could require repeated transformation of raw JSON on each page.
 - OpenDota remains the source of truth, and endpoint classifications will be reviewed alongside official OpenDota documentation when the implementation plan identifies the complete endpoint inventory.
 - MCP software upgrades are assumed not to affect cache usability because stored response content is tied to the OpenDota API contract; full-cache removal is the recovery path for exceptional incompatibility.
 - Cached OpenDota data is public upstream information stored as local application data; operating-system per-user access controls are sufficient, and cache-specific encryption is out of scope.

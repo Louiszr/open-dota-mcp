@@ -32,5 +32,7 @@
 ## Notes
 
 - Validation iteration 1 passed all checklist items on 2026-07-25.
+- Validation iteration 2 passed after excluding persistent/cross-process pagination and preserving
+  the existing process-local pagination cache behavior.
 - The requested CLI-or-web-UI choice is resolved to a bounded local command-line inspection interface for version one; the specific implementation technology is intentionally deferred to planning.
 - OpenDota is named only as the required external business dependency and source of truth; implementation stack and storage technology are intentionally unspecified.
