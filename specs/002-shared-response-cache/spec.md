@@ -82,7 +82,7 @@ As a local operator, I want to see cache effectiveness and storage use, so that 
 
 **Acceptance Scenarios**:
 
-1. **Given** cached requests have occurred, **When** the operator requests a cache summary, **Then** the system shows entry count, total storage used, configured maximum size, hits, misses, writes, expirations, and evictions.
+1. **Given** cached requests have occurred, **When** the operator requests a cache summary, **Then** the system shows entry count, allocated and stored main-database bytes, configured retained main-database maximum, hits, misses, writes, expirations, and evictions.
 2. **Given** the operator requests entry details, **When** entries exist, **Then** the system shows a safe key description, freshness category, creation and expiry times, stored size, last-use time, and reuse count for each listed entry.
 3. **Given** request credentials or other secrets influence an upstream call, **When** cache information is inspected, **Then** those secrets are not displayed.
 4. **Given** the operator determines that cached content is unusable, **When** the operator invokes full-cache removal and confirms the action, **Then** all cached responses and response-cache usage metadata are removed together, even if MCP processes remain active; independent process-local pagination snapshots are unchanged.
@@ -90,13 +90,13 @@ As a local operator, I want to see cache effectiveness and storage use, so that 
 
 ### Edge Cases
 
-- The computer clock changes after an entry is stored; validity remains based on the entry's absolute expiry and an entry is never extended merely by a clock adjustment or process restart.
+- The computer clock changes after an entry is stored; `created_at` and `expires_at` remain immutable, and validity is evaluated against the persisted absolute expiry timestamp. Cache reuse, clock changes, and process restarts never recalculate or rewrite the expiry.
 - Two MCP instances attempt to write the same response concurrently; readers receive one complete response and never a partial or corrupted value.
 - An MCP process stops while writing; later processes detect and discard incomplete data without losing unrelated valid entries.
 - The shared cache is unavailable, unwritable, or corrupt; normal requests remain usable through OpenDota when possible, and operators receive actionable diagnostics rather than malformed cached data.
 - An upstream request fails; the failure itself is not cached as a successful response, and an expired response is not silently represented as fresh.
 - A coordinated population exhausts its retry budget; every caller already waiting for that cache identity receives that same final failure, while a later request begins a new coordinated attempt.
-- A response is larger than the entire configured capacity; it is returned to the caller but not retained, and existing unrelated entries are not all discarded to accommodate it.
+- A response is larger than the configured retained main-database capacity; it is returned to the caller but not retained, and existing unrelated entries are not all discarded to accommodate it.
 - Storage is full of entries currently in use by other MCP instances; cleanup does not remove an entry while it is being read or written.
 - Semantically equivalent requests express parameters in a different order; they map to the same cache identity, while requests that can produce different response content remain distinct.
 - A new GET query parameter is added without cache-specific classification; it is treated as content-altering and changes the cache identity automatically. Only a parameter on the explicit reviewed non-content-altering exclusion list, initially API-key authentication material, may be omitted.
@@ -122,11 +122,11 @@ As a local operator, I want to see cache effectiveness and storage use, so that 
 - **FR-011**: Existing pagination pages and continuation state MUST remain in the process-local pagination cache with its existing transformed snapshot representation, 30-minute lifetime, 32-traversal capacity, least-recently-used eviction, and rotating single-use token behavior.
 - **FR-012**: Shared response-cache persistence, capacity accounting, inspection, and clear operations MUST NOT store, enumerate, expire, evict, or remove pagination snapshots or continuation tokens.
 - **FR-013**: Concurrent local instances requesting an identical missing or expired entry MUST share one coordinated population attempt, including its bounded upstream retries; all waiting callers MUST receive the same completed response or the same final failure after retry exhaustion, and only a later request may begin a new coordinated attempt.
-- **FR-014**: The cache MUST have a configurable maximum on-disk size with a default of 1 GiB per local user.
-- **FR-015**: When space is required, the system MUST remove expired entries first and then the least recently used eligible entries until the cache is within its configured maximum; in-use and incomplete entries MUST be handled without exposing partial content.
-- **FR-016**: A response larger than the configured maximum MUST be returned but MUST NOT be cached.
+- **FR-014**: The cache MUST have a configurable maximum retained SQLite main-database allocation with a default of 1 GiB per local user. Temporary SQLite transaction files are excluded from this retained-allocation limit.
+- **FR-015**: When retained main-database space is required, the system MUST remove expired entries first and then the least recently used eligible entries until the cache is within its configured retained-allocation maximum; in-use and incomplete entries MUST be handled without exposing partial content.
+- **FR-016**: A response larger than the configured retained main-database maximum MUST be returned but MUST NOT be cached.
 - **FR-017**: The system MUST provide a local command-line inspection and management interface that works independently of a running MCP process.
-- **FR-018**: The inspection interface MUST report aggregate entry count, stored size, maximum size, hits, misses, successful writes, expirations, evictions, and requests bypassed because the cache was unavailable.
+- **FR-018**: The inspection interface MUST report aggregate entry count, allocated and stored main-database bytes, configured retained main-database maximum, hits, misses, successful writes, expirations, evictions, and requests bypassed because the cache was unavailable.
 - **FR-019**: The inspection interface MUST provide per-entry safe key description, category, creation time, expiry time, stored size, last-use time, and reuse count, with bounded output and optional filtering so large caches do not produce unbounded results.
 - **FR-020**: Usage counters and entry metadata MUST be shared and persistent across MCP processes and computer restarts, subject to the same capacity management as the responses they describe.
 - **FR-021**: The system MUST never return an expired, incomplete, unreadable, or corrupt entry as a valid response.
@@ -154,8 +154,8 @@ As a local operator, I want to see cache effectiveness and storage use, so that 
 - **SC-001**: In lifecycle tests covering a stopped MCP process, a new harness session, and a computer restart simulation, 100% of unexpired, non-evicted test entries are reusable without an additional OpenDota call.
 - **SC-002**: Across classification tests, 100% of unclassified and unparsed responses expire after 15 minutes, while 100% of explicitly stable and confirmed parsed-match responses expire after 1 day, with no reuse extending either lifetime.
 - **SC-003**: For 20 simultaneous equivalent requests across multiple local MCP instances, no more than one successful OpenDota call is made to populate the shared response.
-- **SC-004**: After any capacity-management operation, stored cache data remains at or below the configured maximum, and 100% of retained entries remain complete and readable.
-- **SC-005**: An operator can obtain cache effectiveness and capacity information in one command in under 2 seconds for a cache containing 10,000 entries on a typical development computer.
+- **SC-004**: After each committed capacity-management operation, `page_count × page_size` for the retained main database is at or below the configured maximum, and 100% of retained entries remain complete and readable.
+- **SC-005**: For a cache containing 10,000 entries, `cache info` completes with a median duration under 2.0 seconds across five measured warm-cache invocations on an x64 Linux runner with at least 2 vCPU, 8 GiB RAM, and 14 GiB local SSD storage, using Python 3.13. Database population and one unmeasured warm-up invocation are excluded.
 - **SC-006**: In inspection tests, reported hits, misses, writes, expirations, and evictions match generated events exactly, and no supplied credential appears in keys, diagnostics, or displayed metadata.
 - **SC-007**: In fault tests covering unavailable storage, interrupted writes, and corrupt entries, 100% of requests either obtain a fresh OpenDota response or return a clear upstream/cache diagnostic; none return partial or corrupt cached content.
 - **SC-008**: Existing pagination regression tests remain unchanged and pass for 30-minute expiry, 32-snapshot capacity, immutable transformed records, token rotation/replay rejection, and restart-required behavior after process replacement.
@@ -168,7 +168,7 @@ As a local operator, I want to see cache effectiveness and storage use, so that 
 ## Assumptions
 
 - Version one provides a command-line inspection experience rather than a web interface, consistent with the project's local developer audience and smallest-useful-surface principle.
-- The default maximum cache size is 1 GiB per local user and can be adjusted for machines with different storage constraints.
+- The default maximum retained SQLite main-database allocation is 1 GiB per local user and can be adjusted for machines with different storage constraints; temporary SQLite transaction files may briefly increase the total cache-directory footprint.
 - Cache scope is one operating-system user on one computer; sharing across user accounts or computers is out of scope.
 - Only successful, cache-eligible read responses are retained. Mutating operations, if introduced later, require an explicit cache invalidation design before becoming cache eligible.
 - Entries expire at a fixed time calculated when successfully stored; this feature does not provide sliding expiration or serve stale data after expiry.

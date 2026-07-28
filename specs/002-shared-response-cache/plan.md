@@ -44,11 +44,12 @@ MCP client over stdio; all cooperating processes run as the same operating-syste
 CLI
 
 **Performance Goals**: Reuse 100% of valid retained entries without upstream I/O; coordinate 20
-equivalent concurrent requests into one population attempt; report a 10,000-entry summary in
-under 2 seconds; keep every committed retained database at or below configured capacity
+equivalent concurrent requests into one population attempt; report a 10,000-entry summary with a
+median duration under 2.0 seconds across five measured warm-cache invocations on the defined CI
+baseline; keep every committed retained main database at or below configured capacity
 
-**Constraints**: Default TTL 900 seconds, explicit long TTL 86,400 seconds, default capacity
-1 GiB, fixed absolute expiry, no stale serving, no successful failure caching, no secret-bearing
+**Constraints**: Default TTL 900 seconds, explicit long TTL 86,400 seconds, default retained
+main-database capacity 1 GiB, fixed absolute expiry, no stale serving, no successful failure caching, no secret-bearing
 identity material, user-only filesystem access, protocol-only stdout during MCP stdio operation,
 fail-closed inclusion of new GET query parameters in cache identities, cache failure must degrade
 to normal upstream behavior, and tests remain offline/deterministic
@@ -56,6 +57,12 @@ to normal upstream behavior, and tests remain offline/deterministic
 **Scale/Scope**: One computer and user account; the existing nine OpenDota GET operations and
 three MCP tools; up to 10,000 inspected entries; 50-entry default/500-entry maximum CLI detail
 pages; one shared cache generation across any number of local MCP processes
+
+**Performance Baseline**: The enforceable baseline is the existing GitHub Actions
+`offline-quality` job on `ubuntu-latest`, conservatively specified as x64 Linux with at least 2
+vCPU, 8 GiB RAM, 14 GiB local SSD storage, and Python 3.13. Benchmarks use a local temporary
+database with no concurrent benchmark workers; database population and one warm-up invocation are
+excluded from measurement.
 
 ## Constitution Check
 
@@ -182,8 +189,10 @@ starts stdio when no arguments are present and dispatches only explicit `cache` 
   auto-vacuum initialized before schema creation, and an explicit application/user schema version.
   `max_page_count` supplies a hard retained main-database bound; page count times page size is the
   operator-visible allocated size. Rollback journals are temporary atomic-commit files, never
-  retained entries. Cache operations run off the async event loop and hold transactions only for
-  metadata/BLOB reads or writes, never during HTTP I/O or retry sleeps.
+  retained entries, and are excluded from the configured retained-allocation limit even though
+  they may briefly increase the cache-directory footprint. Cache operations run off the async event
+  loop and hold transactions only for metadata/BLOB reads or writes, never during HTTP I/O or retry
+  sleeps.
 - Insert only a fully received, successfully JSON-decoded payload and its SHA-256 digest in one
   transaction. Readers copy and verify the complete BLOB before returning it. Invalid JSON,
   digest mismatch, missing content, schema/database errors, and interrupted transactions never
@@ -231,9 +240,9 @@ starts stdio when no arguments are present and dispatches only explicit `cache` 
   extended.
 - Set `created_at` from wall-clock UTC immediately before the successful storage transaction and
   persist `expires_at = created_at + ttl`. Hits, process replacement, restart, and clock changes
-  never rewrite either value. Eligibility is `now < expires_at`; equality is expired. A clock
-  adjustment can change when the fixed absolute instant is observed but cannot extend the stored
-  expiry value.
+  never recalculate or rewrite either value. Eligibility is `now < expires_at`; equality is
+  expired. A clock adjustment can change when the fixed absolute instant is observed but never
+  changes the persisted expiry timestamp.
 - Delete expired rows opportunistically and increment `expirations` once per removed entry. Never
   serve stale data and never cache non-2xx responses, retry exhaustion, decoding failures, or
   caller cancellation as successful content.
@@ -262,9 +271,10 @@ starts stdio when no arguments are present and dispatches only explicit `cache` 
 
 ### Capacity, LRU, and clear generation
 
-- Validate a configured positive maximum and default it to 1,073,741,824 bytes. Before evicting,
-  reject a serialized response that cannot fit the maximum even in an otherwise empty initialized
-  store; return it fresh, increment no write, and leave unrelated entries untouched.
+- Validate a configured positive retained main-database maximum and default it to 1,073,741,824
+  bytes. Temporary SQLite transaction files are outside this retained-allocation limit. Before
+  evicting, reject a serialized response that cannot fit the maximum even in an otherwise empty
+  initialized store; return it fresh, increment no write, and leave unrelated entries untouched.
 - For a cacheable write, remove expired response entries first, then complete least-recently-used
   response entries ordered by `last_used_at`, `created_at`, and digest. Reads and
   writes occur in transactions, so a concurrent reader sees either the old complete BLOB or the
@@ -302,7 +312,8 @@ starts stdio when no arguments are present and dispatches only explicit `cache` 
 - Preserve `open-dota-mcp` and `python -m open_dota_mcp` with no arguments as protocol-only stdio.
   Add `cache info`, `cache entries`, and `cache clear --yes`; management commands run without a
   server and may write their human or JSON result to stdout.
-- `cache info` reports response entry count, allocated/stored bytes, configured maximum, and exact hits,
+- `cache info` reports response entry count, allocated/stored main-database bytes, configured
+  retained main-database maximum, and exact hits,
   misses, writes, expirations, evictions, and bypasses. `cache entries` defaults to 50, permits at
   most 500, filters by operation/category, sorts deterministically, and returns an opaque next
   cursor when more response rows exist. It exposes only the safe description, category, timestamps, stored
