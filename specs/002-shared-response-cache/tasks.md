@@ -18,8 +18,8 @@
 
 **Purpose**: Establish the cache package and deterministic test support without changing runtime behavior.
 
-- [ ] T001 Create the typed cache package exports and module boundaries described by the plan in `src/open_dota_mcp/cache/__init__.py`
-- [ ] T002 [P] Add temporary owner-only cache directories, mutable wall clocks, deterministic polling jitter, and SQLite test helpers in `tests/conftest.py`
+- [X] T001 Create the typed cache package exports and module boundaries described by the plan in `src/open_dota_mcp/cache/__init__.py`
+- [X] T002 [P] Add temporary owner-only cache directories, mutable wall clocks, deterministic polling jitter, and SQLite test helpers in `tests/conftest.py`
 
 ---
 
@@ -29,10 +29,10 @@
 
 **Critical**: No user-story implementation begins until this phase is complete.
 
-- [ ] T003 [P] Add public `Settings.from_env()` and `Settings.validate()` tests for platform cache paths, `OPENDOTA_CACHE_DIR`, the positive retained main-database `OPENDOTA_CACHE_MAX_BYTES` value, secret-free errors, and unchanged retry/snapshot defaults in `tests/unit/test_config.py`
-- [ ] T004 Extend the typed runtime settings with a resolved user cache directory and default 1 GiB retained main-database maximum while rejecting invalid or secret-bearing configuration in `src/open_dota_mcp/config.py`
-- [ ] T005 [P] Add schema/bootstrap tests for Cache Control, Response Entry, Usage Summary, Active Population, and Population Outcome records, full auto-vacuum, page bounds, finite busy timeout, rollback journaling, schema versioning, and atomic interrupted initialization in `tests/unit/test_cache_store.py`
-- [ ] T006 Implement typed SQLite records, connection/bootstrap transactions, schema indexes, off-event-loop operation support, and owner-only `0700` directory/`0600` database creation in `src/open_dota_mcp/cache/store.py`
+- [X] T003 [P] Add public `Settings.from_env()` and `Settings.validate()` tests for platform cache paths, `OPENDOTA_CACHE_DIR`, the positive retained main-database `OPENDOTA_CACHE_MAX_BYTES` value, secret-free errors, and unchanged retry/snapshot defaults in `tests/unit/test_config.py`
+- [X] T004 Extend the typed runtime settings with a resolved user cache directory and default 1 GiB retained main-database maximum while rejecting invalid or secret-bearing configuration in `src/open_dota_mcp/config.py`
+- [X] T005 [P] Add schema/bootstrap tests for Cache Control, Response Entry, Usage Summary, Active Population, and Population Outcome records, full auto-vacuum, page bounds, finite busy timeout, rollback journaling, schema versioning, and atomic interrupted initialization in `tests/unit/test_cache_store.py`
+- [X] T006 Implement typed SQLite records, connection/bootstrap transactions, schema indexes, off-event-loop operation support, and owner-only `0700` directory/`0600` database creation in `src/open_dota_mcp/cache/store.py`
 
 **Checkpoint**: A validated, owner-only, bounded SQLite store can be initialized without network access; all user stories may now proceed.
 
@@ -46,19 +46,19 @@
 
 ### Tests for User Story 1
 
-- [ ] T007 [P] [US1] Add deterministic cache-identity tests for typed canonical mappings, reordered equivalence, base path/operation/path/query distinctions, fail-closed unknown query parameters, the reviewed `api_key` exclusion, rejected non-finite values, bounded safe descriptions, and absence of credentials/package/session data in `tests/unit/test_cache_identity.py`
-- [ ] T008 [P] [US1] Add response-entry tests for atomic complete-JSON writes, digest/length/JSON verification, hit/miss/write counters, fixed metadata, corruption rejection, and no successful storage of malformed or failed upstream outcomes in `tests/unit/test_cache_store.py`
-- [ ] T009 [P] [US1] Extend typed-client tests for all nine operations to prove every unclassified cacheable result receives the mandatory 900-second fallback, cache hits and fresh payloads share top-level validation/MCP shaping, query identity uses the complete HTTP parameter mapping, credentials stay excluded, cancellation propagates, and existing safe retry classification, bounded increasing jitter, valid/invalid `Retry-After`, recovery, and exhaustion remain deterministic in `tests/unit/test_opendota_client.py`
-- [ ] T010 [P] [US1] Add 20-process coordinated-success, coordinated-retry-exhaustion, later-new-attempt, waiter-cancellation, and owner-crash/lease-expiry acceptance tests with no real sleeps in `tests/integration/test_cache_multiprocess.py`
+- [X] T007 [P] [US1] Add deterministic cache-identity tests for typed canonical mappings, reordered equivalence, base path/operation/path/query distinctions, fail-closed unknown query parameters, the reviewed `api_key` exclusion, rejected non-finite values, bounded safe descriptions, and absence of credentials/package/session data in `tests/unit/test_cache_identity.py`
+- [X] T008 [P] [US1] Add response-entry tests for atomic complete-JSON writes, digest/length/JSON verification, hit/miss/write counters, fixed metadata, corruption rejection, and no successful storage of malformed or failed upstream outcomes in `tests/unit/test_cache_store.py`
+- [X] T009 [P] [US1] Extend typed-client tests for all nine operations to prove every unclassified cacheable result receives the mandatory 900-second fallback, cache hits and fresh payloads share top-level validation/MCP shaping, query identity uses the complete HTTP parameter mapping, credentials stay excluded, cancellation propagates, and existing safe retry classification, bounded increasing jitter, valid/invalid `Retry-After`, recovery, and exhaustion remain deterministic in `tests/unit/test_opendota_client.py`
+- [X] T010 [P] [US1] Add 20-process coordinated-success, coordinated-retry-exhaustion, later-new-attempt, waiter-cancellation, and owner-crash/lease-expiry acceptance tests with no real sleeps in `tests/integration/test_cache_multiprocess.py`
 
 ### Implementation for User Story 1
 
-- [ ] T011 [US1] Implement canonical OpenDota contract identities, default inclusion of every GET path/query input, the centralized reviewed `api_key` exclusion, SHA-256 digests, source normalization, and bounded secret-safe descriptions in `src/open_dota_mcp/cache/identity.py`
-- [ ] T012 [US1] Implement atomic response lookup/write that requires a resolved category and immutable expiry, integrity verification, exact transactional counters, corrupt/expired miss handling, and complete upstream JSON serialization in `src/open_dota_mcp/cache/store.py`
-- [ ] T013 [US1] Implement generation-bound population lease election/renewal/release and short-lived sanitized terminal outcomes so waiters share one success or final failure without holding SQLite locks across I/O in `src/open_dota_mcp/cache/store.py`
-- [ ] T014 [US1] Implement the mandatory typed 900-second fallback for every unclassified cacheable result in `src/open_dota_mcp/cache/policy.py`, then integrate cache identity, lookup, coordinated ownership/waiting, existing bounded retry execution, resolved category/expiry, and successful raw JSON storage into every typed GET operation before object/list validation in `src/open_dota_mcp/clients/opendota.py`; no response may be stored without an immutable expiry
-- [ ] T015 [US1] Add fresh-to-hit, replacement-process, replacement-harness, restart/reopen, compatible-version reuse, unavailable-write fresh return, and identical hit/miss shaping acceptance coverage in `tests/integration/test_cache_lifecycle.py`
-- [ ] T016 [US1] Extend all three MCP contract suites to prove unchanged slim defaults, every draft include group, invalid selections, focused selectors/filters, 20/100 page bounds, structured upstream failures, and identical cached/fresh results in `tests/contract/test_draft_tool.py`, `tests/contract/test_tournament_tool.py`, and `tests/contract/test_team_tool.py`
+- [X] T011 [US1] Implement canonical OpenDota contract identities, default inclusion of every GET path/query input, the centralized reviewed `api_key` exclusion, SHA-256 digests, source normalization, and bounded secret-safe descriptions in `src/open_dota_mcp/cache/identity.py`
+- [X] T012 [US1] Implement atomic response lookup/write that requires a resolved category and immutable expiry, integrity verification, exact transactional counters, corrupt/expired miss handling, and complete upstream JSON serialization in `src/open_dota_mcp/cache/store.py`
+- [X] T013 [US1] Implement generation-bound population lease election/renewal/release and short-lived sanitized terminal outcomes so waiters share one success or final failure without holding SQLite locks across I/O in `src/open_dota_mcp/cache/store.py`
+- [X] T014 [US1] Implement the mandatory typed 900-second fallback for every unclassified cacheable result in `src/open_dota_mcp/cache/policy.py`, then integrate cache identity, lookup, coordinated ownership/waiting, existing bounded retry execution, resolved category/expiry, and successful raw JSON storage into every typed GET operation before object/list validation in `src/open_dota_mcp/clients/opendota.py`; no response may be stored without an immutable expiry
+- [X] T015 [US1] Add fresh-to-hit, replacement-process, replacement-harness, restart/reopen, compatible-version reuse, unavailable-write fresh return, and identical hit/miss shaping acceptance coverage in `tests/integration/test_cache_lifecycle.py`
+- [X] T016 [US1] Extend all three MCP contract suites to prove unchanged slim defaults, every draft include group, invalid selections, focused selectors/filters, 20/100 page bounds, structured upstream failures, and identical cached/fresh results in `tests/contract/test_draft_tool.py`, `tests/contract/test_tournament_tool.py`, and `tests/contract/test_team_tool.py`
 
 **Checkpoint**: User Story 1 independently demonstrates durable reuse and single coordinated population without changing the published MCP schemas.
 
@@ -72,14 +72,14 @@
 
 ### Tests for User Story 2
 
-- [ ] T017 [P] [US2] Add classifier tests for 900-second default, explicit 86,400-second heroes/patches, positive non-boolean match `version`, and missing/null/boolean/nonpositive/malformed match versions in `tests/unit/test_cache_policy.py`
-- [ ] T018 [P] [US2] Add fixed-expiry store tests for `now < expires_at`, equality expiration, immutable stored timestamps, no sliding extension on hits, forward/backward wall-clock observations, expiration counters, and expired-first cleanup in `tests/unit/test_cache_store.py`
+- [X] T017 [P] [US2] Add classifier tests for 900-second default, explicit 86,400-second heroes/patches, positive non-boolean match `version`, and missing/null/boolean/nonpositive/malformed match versions in `tests/unit/test_cache_policy.py`
+- [X] T018 [P] [US2] Add fixed-expiry store tests for `now < expires_at`, equality expiration, immutable stored timestamps, no sliding extension on hits, forward/backward wall-clock observations, expiration counters, and expired-first cleanup in `tests/unit/test_cache_store.py`
 
 ### Implementation for User Story 2
 
-- [ ] T019 [US2] Extend the typed freshness policy with explicitly reviewed 86,400-second classifications for heroes, patches, and confirmed parsed matches while retaining the mandatory short-lived fallback for every other result in `src/open_dota_mcp/cache/policy.py`
-- [ ] T020 [US2] Extend post-decode integration to apply category-specific classification and immutable UTC `created_at`/`expires_at` values during response insertion and expiration cleanup in `src/open_dota_mcp/cache/store.py` and `src/open_dota_mcp/clients/opendota.py`
-- [ ] T021 [US2] Add lifecycle acceptance tests for all freshness categories, exact expiry boundaries, refresh after expiration, failed refresh without stale serving, and unchanged expiry across process/restart simulations in `tests/integration/test_cache_lifecycle.py`
+- [X] T019 [US2] Extend the typed freshness policy with explicitly reviewed 86,400-second classifications for heroes, patches, and confirmed parsed matches while retaining the mandatory short-lived fallback for every other result in `src/open_dota_mcp/cache/policy.py`
+- [X] T020 [US2] Extend post-decode integration to apply category-specific classification and immutable UTC `created_at`/`expires_at` values during response insertion and expiration cleanup in `src/open_dota_mcp/cache/store.py` and `src/open_dota_mcp/clients/opendota.py`
+- [X] T021 [US2] Add lifecycle acceptance tests for all freshness categories, exact expiry boundaries, refresh after expiration, failed refresh without stale serving, and unchanged expiry across process/restart simulations in `tests/integration/test_cache_lifecycle.py`
 
 **Checkpoint**: User Story 2 independently proves every cacheable operation receives the safe default or an explicit reviewed long lifetime.
 
@@ -93,13 +93,13 @@
 
 ### Tests for User Story 3
 
-- [ ] T022 [P] [US3] Extend registry unit tests for immutable transformed records, 30-minute fixed expiry, 32-traversal LRU, rotating single-use tokens, tool/query binding, replay rejection, and replacement-process invalidation in `tests/unit/test_pagination.py`
-- [ ] T023 [P] [US3] Add tournament/team contract regressions proving continuation uses materialized summaries, retains 20/100 bounds and terminal metadata, and remains valid after response-cache eviction or clear in `tests/contract/test_tournament_tool.py` and `tests/contract/test_team_tool.py`
+- [X] T022 [P] [US3] Extend registry unit tests for immutable transformed records, 30-minute fixed expiry, 32-traversal LRU, rotating single-use tokens, tool/query binding, replay rejection, and replacement-process invalidation in `tests/unit/test_pagination.py`
+- [X] T023 [P] [US3] Add tournament/team contract regressions proving continuation uses materialized summaries, retains 20/100 bounds and terminal metadata, and remains valid after response-cache eviction or clear in `tests/contract/test_tournament_tool.py` and `tests/contract/test_team_tool.py`
 
 ### Implementation for User Story 3
 
-- [ ] T024 [US3] Wire the shared response cache only into the default `OpenDotaClient` while preserving an independently constructed process-local `SnapshotRegistry` and protocol-only three-tool server surface in `src/open_dota_mcp/server.py`
-- [ ] T025 [US3] Add lifecycle coverage proving no pagination tables/counters/inspection rows exist, continuations perform no raw-payload rehydration, clear leaves active snapshots untouched, and restart guidance remains recoverable in `tests/integration/test_cache_lifecycle.py`
+- [X] T024 [US3] Wire the shared response cache only into the default `OpenDotaClient` while preserving an independently constructed process-local `SnapshotRegistry` and protocol-only three-tool server surface in `src/open_dota_mcp/server.py`
+- [X] T025 [US3] Add lifecycle coverage proving no pagination tables/counters/inspection rows exist, continuations perform no raw-payload rehydration, clear leaves active snapshots untouched, and restart guidance remains recoverable in `tests/integration/test_cache_lifecycle.py`
 
 **Checkpoint**: User Story 3 independently confirms the persistent response cache has not changed pagination representation or lifecycle.
 
@@ -113,19 +113,19 @@
 
 ### Tests for User Story 4
 
-- [ ] T026 [P] [US4] Add capacity tests for the configured retained main-database page bound, explicit exclusion of temporary transaction files, expired-first then deterministic LRU eviction, active/incomplete record protection, oversized-response bypass without unrelated eviction, rollback on failed capacity work, and retained-record readability in `tests/unit/test_cache_store.py`
-- [ ] T027 [P] [US4] Add public CLI contract tests for human/JSON `info` with allocated/stored main-database bytes and the configured retained maximum, 50-default/500-maximum filtered `entries`, deterministic seek cursors and terminal pages, invalid filters/limits/cursors, exact counters, safe descriptions, confirmation-required clear, exit statuses, and credential/raw-payload exclusion in `tests/contract/test_cache_cli.py`
-- [ ] T028 [P] [US4] Add console/module subprocess tests for no-argument protocol-only stdio plus standalone `cache info`, `cache entries`, and `cache clear --yes` dispatch with stdout/stderr separation in `tests/integration/test_stdio.py`
-- [ ] T029 [P] [US4] Add live-process clear tests for active readers/writers, generation changes, pre-clear waiter handling, old completion rejection, post-clear repopulation, zeroed counters, and unchanged pagination in `tests/integration/test_cache_multiprocess.py`
-- [ ] T030 [P] [US4] Add cache-unavailable, lock-timeout, corrupt/unsupported database, symlink, wrong-owner, restrictive-mode, secret-safe diagnostic, bypass-counter, and normal-upstream-fallback tests in `tests/integration/test_cache_lifecycle.py`
+- [X] T026 [P] [US4] Add capacity tests for the configured retained main-database page bound, explicit exclusion of temporary transaction files, expired-first then deterministic LRU eviction, active/incomplete record protection, oversized-response bypass without unrelated eviction, rollback on failed capacity work, and retained-record readability in `tests/unit/test_cache_store.py`
+- [X] T027 [P] [US4] Add public CLI contract tests for human/JSON `info` with allocated/stored main-database bytes and the configured retained maximum, 50-default/500-maximum filtered `entries`, deterministic seek cursors and terminal pages, invalid filters/limits/cursors, exact counters, safe descriptions, confirmation-required clear, exit statuses, and credential/raw-payload exclusion in `tests/contract/test_cache_cli.py`
+- [X] T028 [P] [US4] Add console/module subprocess tests for no-argument protocol-only stdio plus standalone `cache info`, `cache entries`, and `cache clear --yes` dispatch with stdout/stderr separation in `tests/integration/test_stdio.py`
+- [X] T029 [P] [US4] Add live-process clear tests for active readers/writers, generation changes, pre-clear waiter handling, old completion rejection, post-clear repopulation, zeroed counters, and unchanged pagination in `tests/integration/test_cache_multiprocess.py`
+- [X] T030 [P] [US4] Add cache-unavailable, lock-timeout, corrupt/unsupported database, symlink, wrong-owner, restrictive-mode, secret-safe diagnostic, bypass-counter, and normal-upstream-fallback tests in `tests/integration/test_cache_lifecycle.py`
 
 ### Implementation for User Story 4
 
-- [ ] T031 [US4] Implement retained main-database allocated-size enforcement using `page_count × page_size`, oversized preflight, expired-first and deterministic LRU transactional eviction, rollback on insufficient space, and exact capacity/counter snapshots in `src/open_dota_mcp/cache/store.py`
-- [ ] T032 [US4] Implement fully typed and Google-documented `info` with allocated/stored main-database bytes and the configured retained maximum, bounded/filterable seek-paginated `entries`, opaque cursors, and confirmed generation-safe `clear` APIs with secret-safe result models in `src/open_dota_mcp/cache/store.py`
-- [ ] T033 [US4] Implement the human/JSON `cache info`, `cache entries`, and `cache clear --yes` argument parsing, bounded rendering, validation, diagnostics, and exit behavior in `src/open_dota_mcp/cache/cli.py`
-- [ ] T034 [US4] Preserve no-argument stdio startup while dispatching only explicit cache management subcommands for both installed and module entry points in `src/open_dota_mcp/__main__.py`
-- [ ] T035 [US4] Add a deterministic 10,000-entry `cache info` benchmark in `tests/contract/test_cache_cli.py`: on the existing `offline-quality` x64 Linux CI baseline of at least 2 vCPU, 8 GiB RAM, 14 GiB local SSD storage, and Python 3.13, run one unmeasured warm-up followed by five measured invocations using a monotonic clock, exclude fixture/database-population time, assert the median duration is under 2.0 seconds, and retain the 500-row output-bound assertion
+- [X] T031 [US4] Implement retained main-database allocated-size enforcement using `page_count × page_size`, oversized preflight, expired-first and deterministic LRU transactional eviction, rollback on insufficient space, and exact capacity/counter snapshots in `src/open_dota_mcp/cache/store.py`
+- [X] T032 [US4] Implement fully typed and Google-documented `info` with allocated/stored main-database bytes and the configured retained maximum, bounded/filterable seek-paginated `entries`, opaque cursors, and confirmed generation-safe `clear` APIs with secret-safe result models in `src/open_dota_mcp/cache/store.py`
+- [X] T033 [US4] Implement the human/JSON `cache info`, `cache entries`, and `cache clear --yes` argument parsing, bounded rendering, validation, diagnostics, and exit behavior in `src/open_dota_mcp/cache/cli.py`
+- [X] T034 [US4] Preserve no-argument stdio startup while dispatching only explicit cache management subcommands for both installed and module entry points in `src/open_dota_mcp/__main__.py`
+- [X] T035 [US4] Add a deterministic 10,000-entry `cache info` benchmark in `tests/contract/test_cache_cli.py`: on the existing `offline-quality` x64 Linux CI baseline of at least 2 vCPU, 8 GiB RAM, 14 GiB local SSD storage, and Python 3.13, run one unmeasured warm-up followed by five measured invocations using a monotonic clock, exclude fixture/database-population time, assert the median duration is under 2.0 seconds, and retain the 500-row output-bound assertion
 
 **Checkpoint**: User Story 4 independently provides bounded, fast, credential-safe inspection and race-safe full removal without an MCP administration tool.
 
@@ -135,10 +135,10 @@
 
 **Purpose**: Synchronize operator guidance and run feature-wide interoperability and quality gates.
 
-- [ ] T036 [P] Document cache location/capacity environment variables, fixed freshness categories, bounded inspection commands, confirmed removal, failure fallback, pagination separation, and secret-handling guidance in `README.md` and `.env.example`
-- [ ] T037 [P] Review every new public function/class for complete type signatures and Google-style docstrings and keep cache diagnostics off protocol stdout in `src/open_dota_mcp/cache/`, `src/open_dota_mcp/config.py`, `src/open_dota_mcp/clients/opendota.py`, and `src/open_dota_mcp/__main__.py`
-- [ ] T038 Run the complete offline scenarios and Codex-compatible protocol inspection from `specs/002-shared-response-cache/quickstart.md`, including all contract/integration tests and `uv run fastmcp inspect src/open_dota_mcp/server.py:mcp`
-- [ ] T039 Require a non-implementing QA sub-agent to audit constitution-required public-surface and risk-based tests, then pass `uv run ruff check .`, `uv run ruff format --check .`, and `uv run pytest` for the repository paths in `src/`, `tests/`, and `pyproject.toml`
+- [X] T036 [P] Document cache location/capacity environment variables, fixed freshness categories, bounded inspection commands, confirmed removal, failure fallback, pagination separation, and secret-handling guidance in `README.md` and `.env.example`
+- [X] T037 [P] Review every new public function/class for complete type signatures and Google-style docstrings and keep cache diagnostics off protocol stdout in `src/open_dota_mcp/cache/`, `src/open_dota_mcp/config.py`, `src/open_dota_mcp/clients/opendota.py`, and `src/open_dota_mcp/__main__.py`
+- [X] T038 Run the complete offline scenarios and Codex-compatible protocol inspection from `specs/002-shared-response-cache/quickstart.md`, including all contract/integration tests and `uv run fastmcp inspect src/open_dota_mcp/server.py:mcp`
+- [X] T039 Require a non-implementing QA sub-agent to audit constitution-required public-surface and risk-based tests, then pass `uv run ruff check .`, `uv run ruff format --check .`, and `uv run pytest` for the repository paths in `src/`, `tests/`, and `pyproject.toml`
 
 ---
 

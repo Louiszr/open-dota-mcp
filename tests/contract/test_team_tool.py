@@ -8,6 +8,7 @@ import httpx
 import pytest
 from fastmcp import Client
 
+from open_dota_mcp.cache.store import CacheStore
 from open_dota_mcp.clients.opendota import OpenDotaClient
 from open_dota_mcp.config import Settings
 from open_dota_mcp.pagination import SnapshotRegistry
@@ -215,3 +216,42 @@ async def test_team_cancellation_and_caller_deadline_propagate() -> None:
     with pytest.raises(TimeoutError):
         async with asyncio.timeout(0.01):
             await service.list_team_matches(team_id=1)
+
+
+@pytest.mark.asyncio
+async def test_cached_and_fresh_team_contracts_are_identical(tmp_path) -> None:
+    calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        if request.url.path.endswith("/teams/1"):
+            return httpx.Response(200, json={"team_id": 1, "name": "Spirit", "tag": "TS"})
+        return httpx.Response(200, json=[team_match(1, 100)])
+
+    settings = Settings(cache_dir=tmp_path / "cache")
+    upstream = OpenDotaClient(
+        settings,
+        transport=httpx.MockTransport(handler),
+        cache_store=CacheStore(settings.cache_dir),
+    )
+    async with Client(create_server(client=upstream)) as session:
+        fresh = await session.call_tool("list_pro_team_matches", {"team_id": 1})
+        first_calls = calls
+        cached = await session.call_tool("list_pro_team_matches", {"team_id": 1})
+    await upstream.aclose()
+    assert cached.structured_content == fresh.structured_content
+    assert calls == first_calls
+
+
+@pytest.mark.asyncio
+async def test_team_continuation_survives_response_cache_clear(tmp_path) -> None:
+    fake = TeamClient()
+    fake.matches = [team_match(value, value * 100) for value in range(1, 45)]
+    service = MatchDiscoveryService(fake, SnapshotRegistry())  # type: ignore[arg-type]
+    first = await service.list_team_matches(team_id=1, page_size=20)
+    fake.matches.clear()
+    CacheStore(tmp_path / "cache").clear()
+    continued = await service.list_team_matches(continuation_token=first.page.continuation_token)
+    assert len(continued.matches) == 20
+    assert continued.page.page_size == 20 and not continued.page.terminal

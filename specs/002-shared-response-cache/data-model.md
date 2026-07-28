@@ -156,6 +156,25 @@ Short-lived terminal failure metadata for callers that already joined one coordi
 Population Outcomes never satisfy response lookup, never increment hits/writes, never contain an
 upstream body or credential, and are pruned after `retain_until` or clear.
 
+### Entry Cursor
+
+A short-lived internal mapping makes CLI entry pagination tokens opaque without exposing cache
+identity digests. The returned token is random; only its SHA-256 digest is stored.
+
+| Field | Type | Rules |
+|---|---|---|
+| `token_digest` | string | SHA-256 of the random returned token; primary key |
+| `last_used_at` | number | Seek timestamp for the next page |
+| `key_digest` | string | Internal seek tie-breaker; never returned |
+| `operation` | string/null | Filter binding |
+| `category` | enum/null | Filter binding |
+| `created_at` | number | Cursor creation UTC epoch |
+| `expires_at` | number | Five-minute observation deadline |
+
+Cursors are single-use, filter-bound, pruned after expiry, capped to the newest 1,000 records, and
+removed by `cache clear`. They contain no response payload or credential and do not appear as cache
+entries in management output.
+
 ### Existing Pagination Snapshot (non-persistent boundary)
 
 The existing `SnapshotRegistry` remains the authoritative pagination model from feature 001. It
@@ -210,5 +229,6 @@ new work tagged N+1            -> may populate normally
 - Response entries: `(expires_at)`, `(last_used_at, created_at, key_digest)`,
   `(operation, category, last_used_at, key_digest)`.
 - Population outcomes: `(retain_until)`.
+- Entry cursors: `(expires_at)` with a hard newest-1,000 record bound.
 - CLI detail pagination uses a deterministic `(last_used_at DESC, stable digest ASC)` seek cursor;
   it never uses an unbounded offset scan or returns more than 500 rows.

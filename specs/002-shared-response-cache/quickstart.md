@@ -30,7 +30,7 @@ Run the lifecycle integration tests with an isolated cache directory:
 
 ```bash
 uv run pytest -q tests/integration/test_cache_lifecycle.py \
-  -k "fresh_then_hit or process_restart or computer_restart_simulation"
+  -k "replacement_client_reuses or stopped_process_replacement or category_lifetimes"
 ```
 
 Expected:
@@ -61,7 +61,7 @@ Expected:
 
 ```bash
 uv run pytest -q tests/unit/test_cache_policy.py tests/integration/test_cache_lifecycle.py \
-  -k "ttl or parsed or unparsed or clock or expiry"
+  -k "freshness_policy or category_lifetimes or failed_refresh"
 ```
 
 Expected:
@@ -76,7 +76,7 @@ Expected:
 
 ```bash
 uv run pytest -q tests/integration/test_cache_multiprocess.py \
-  -k "twenty_callers_success or twenty_callers_retry_exhaustion or owner_crash"
+  -k "twenty_processes_share or twenty_callers_share or crash_expiry"
 ```
 
 Expected:
@@ -109,7 +109,7 @@ Expected:
 
 ```bash
 uv run pytest -q tests/unit/test_cache_store.py \
-  -k "capacity or expired_first or lru or oversized or corrupt or interrupted_write"
+  -k "capacity or expired or corrupt or terminated_writer"
 ```
 
 Expected:
@@ -145,7 +145,7 @@ Expected:
 Benchmark the required inspection scale:
 
 ```bash
-uv run pytest -q tests/contract/test_cache_cli.py -k "ten_thousand_entries_under_two_seconds"
+uv run pytest -q tests/contract/test_cache_cli.py -k "ten_thousand_entry_info_benchmark"
 ```
 
 Expected: the cache summary for 10,000 entries completes in under two seconds on the designated
@@ -165,7 +165,7 @@ Expected: the first command exits with usage status and changes nothing.
 Then run the concurrency acceptance test and clear explicitly:
 
 ```bash
-uv run pytest -q tests/integration/test_cache_multiprocess.py -k "clear_with_active_work"
+uv run pytest -q tests/integration/test_cache_multiprocess.py -k "clear_with_twenty_active"
 uv run open-dota-mcp cache clear --yes --json
 uv run open-dota-mcp cache info --json
 ```
@@ -183,7 +183,7 @@ Expected:
 
 ```bash
 uv run pytest -q tests/integration/test_cache_lifecycle.py \
-  -k "unwritable or corrupt_database or lock_timeout or wrong_owner or permissions"
+  -k "unwritable or corrupt_cache or lock_timeout or wrong_owner or second_nonprivileged"
 ```
 
 Expected:

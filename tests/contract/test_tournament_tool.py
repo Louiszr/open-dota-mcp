@@ -8,6 +8,7 @@ import httpx
 import pytest
 from fastmcp import Client
 
+from open_dota_mcp.cache.store import CacheStore
 from open_dota_mcp.clients.opendota import OpenDotaClient
 from open_dota_mcp.config import Settings
 from open_dota_mcp.pagination import SnapshotRegistry
@@ -171,3 +172,46 @@ async def test_tournament_cancellation_and_caller_deadline_propagate() -> None:
     with pytest.raises(TimeoutError):
         async with asyncio.timeout(0.01):
             await service.list_tournament_matches(league_id=10)
+
+
+@pytest.mark.asyncio
+async def test_cached_and_fresh_tournament_contracts_are_identical(tmp_path) -> None:
+    calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        if request.url.path.endswith("/leagues"):
+            return httpx.Response(
+                200, json=[{"leagueid": 10, "name": "DreamLeague", "tier": "premium"}]
+            )
+        return httpx.Response(200, json=[tournament_match(1, 100)])
+
+    settings = Settings(cache_dir=tmp_path / "cache")
+    upstream = OpenDotaClient(
+        settings,
+        transport=httpx.MockTransport(handler),
+        cache_store=CacheStore(settings.cache_dir),
+    )
+    async with Client(create_server(client=upstream)) as session:
+        fresh = await session.call_tool("list_pro_tournament_matches", {"league_id": 10})
+        first_calls = calls
+        cached = await session.call_tool("list_pro_tournament_matches", {"league_id": 10})
+    await upstream.aclose()
+    assert cached.structured_content == fresh.structured_content
+    assert calls == first_calls
+
+
+@pytest.mark.asyncio
+async def test_tournament_continuation_survives_response_cache_clear(tmp_path) -> None:
+    fake = TournamentClient()
+    registry = SnapshotRegistry()
+    service = MatchDiscoveryService(fake, registry)  # type: ignore[arg-type]
+    first = await service.list_tournament_matches(league_id=10, page_size=20)
+    fake.matches.clear()
+    CacheStore(tmp_path / "cache").clear()
+    continued = await service.list_tournament_matches(
+        continuation_token=first.page.continuation_token
+    )
+    assert len(continued.matches) == 20
+    assert continued.page.page_size == 20 and not continued.page.terminal

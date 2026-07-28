@@ -66,3 +66,21 @@ def test_defaults_match_contract() -> None:
     registry = SnapshotRegistry()
     assert registry.ttl_seconds == 1800
     assert registry.capacity == 32
+
+
+def test_replacement_registry_invalidates_tokens_and_default_capacity_is_lru() -> None:
+    sequence = (f"token-{value}" for value in range(40))
+    registry = SnapshotRegistry(capacity=32, token_factory=lambda: next(sequence))
+    tokens: list[str] = []
+    for value in range(33):
+        _, metadata = registry.first_page(
+            tool="x", query={"id": value}, items=[value, value + 1], page_size=1
+        )
+        tokens.append(str(metadata.continuation_token))
+    with pytest.raises(PaginationError) as evicted:
+        registry.next_page(tokens[0], tool="x")
+    assert evicted.value.restart_required
+    replacement = SnapshotRegistry()
+    with pytest.raises(PaginationError) as missing:
+        replacement.next_page(tokens[-1], tool="x")
+    assert missing.value.code == "invalid_continuation"
