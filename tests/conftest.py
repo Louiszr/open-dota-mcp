@@ -2,11 +2,28 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator, Awaitable, Callable
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 import httpx
 import pytest
 from fastmcp import Client
+
+from open_dota_mcp.cache.store import CacheStore
+
+
+class MutableClock:
+    """Deterministic mutable UTC wall clock."""
+
+    def __init__(self, value: float) -> None:
+        self.value = value
+
+    def __call__(self) -> float:
+        return self.value
+
+    def advance(self, seconds: float) -> None:
+        """Advance the clock by an exact duration."""
+        self.value += seconds
 
 
 @pytest.fixture
@@ -41,6 +58,26 @@ def sleeper(clock: Callable[[], float]) -> Callable[[float], Awaitable[None]]:
 def jitter() -> Callable[[float], float]:
     """Return deterministic zero jitter."""
     return lambda _upper: 0.0
+
+
+@pytest.fixture
+def wall_clock(fixed_now: datetime) -> MutableClock:
+    """Return a mutable wall clock for expiry and lease tests."""
+    return MutableClock(fixed_now.timestamp())
+
+
+@pytest.fixture
+def cache_dir(tmp_path: Path) -> Path:
+    """Return a temporary owner-only cache directory path."""
+    path = tmp_path / "cache"
+    path.mkdir(mode=0o700)
+    return path
+
+
+@pytest.fixture
+def cache_store(cache_dir: Path, wall_clock: MutableClock) -> CacheStore:
+    """Return a deterministic temporary SQLite cache store."""
+    return CacheStore(cache_dir, clock=wall_clock)
 
 
 @pytest.fixture

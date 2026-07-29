@@ -177,6 +177,8 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Confirm the implementation follows the technical plan
    - Spawn a new QA sub-agent that did not participate in implementation. The
      implementing agent MUST NOT perform or substitute for this independent QA pass.
+   - Spawn the QA review sub-agent with model `gpt-5.6-sol` and reasoning effort
+     `medium`.
    - Instruct the QA sub-agent to inspect the implementation and tests, verify required
      test coverage is actually implemented, and run all of:
      - `uv run ruff check .`

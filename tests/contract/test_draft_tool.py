@@ -7,6 +7,7 @@ import httpx
 import pytest
 from fastmcp import Client
 
+from open_dota_mcp.cache.store import CacheStore
 from open_dota_mcp.clients.opendota import OpenDotaClient
 from open_dota_mcp.config import Settings
 from open_dota_mcp.errors import UpstreamError
@@ -238,3 +239,35 @@ async def test_caller_deadline_cancels_pending_draft_work() -> None:
     with pytest.raises(TimeoutError):
         async with asyncio.timeout(0.01):
             await DraftService(fake).get_drafts([1])  # type: ignore[arg-type]
+
+
+@pytest.mark.asyncio
+async def test_cached_and_fresh_draft_contracts_are_identical(tmp_path) -> None:
+    calls = 0
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        path = request.url.path
+        seen.append(path)
+        if path.endswith("/heroes"):
+            return httpx.Response(200, json=[{"id": 1, "localized_name": "Anti-Mage"}])
+        if path.endswith("/constants/patch") or path.endswith("/proPlayers"):
+            return httpx.Response(200, json=[])
+        if path.endswith("/leagues/10/matches"):
+            return httpx.Response(200, json=[{"match_id": 1}])
+        return httpx.Response(200, json=match(1))
+
+    settings = Settings(cache_dir=tmp_path / "cache")
+    upstream = OpenDotaClient(
+        settings,
+        transport=httpx.MockTransport(handler),
+        cache_store=CacheStore(settings.cache_dir),
+    )
+    fresh = await call(upstream, {"match_ids": [1], "include": ["result"]})
+    first_calls = calls
+    cached = await call(upstream, {"match_ids": [1], "include": ["result"]})
+    await upstream.aclose()
+    assert cached == fresh
+    assert calls == first_calls, seen

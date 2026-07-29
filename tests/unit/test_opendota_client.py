@@ -5,6 +5,7 @@ import asyncio
 import httpx
 import pytest
 
+from open_dota_mcp.cache.store import CacheStore
 from open_dota_mcp.clients.opendota import OpenDotaClient
 from open_dota_mcp.config import Settings
 from open_dota_mcp.errors import UpstreamError
@@ -34,6 +35,138 @@ async def test_every_documented_get_method_and_unknown_fields_are_permissive() -
         assert await client.get_team_matches(2) == []
         assert await client.get_pro_players() == []
     assert any("/teams?page=4" in url for url in seen)
+
+
+@pytest.mark.asyncio
+async def test_all_operations_cache_before_shared_shape_validation(tmp_path) -> None:
+    calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        path = request.url.path
+        if path.endswith("/matches/1"):
+            return httpx.Response(200, json={"match_id": 1})
+        if path.endswith("/teams/2"):
+            return httpx.Response(200, json={"team_id": 2})
+        if path.endswith("/heroes"):
+            return httpx.Response(200, json=[{"id": 1}])
+        return httpx.Response(200, json=[])
+
+    store = CacheStore(tmp_path / "cache")
+    client = OpenDotaClient(
+        Settings(cache_dir=tmp_path / "cache"),
+        transport=httpx.MockTransport(handler),
+        cache_store=store,
+    )
+    async with client:
+        await client.get_match(1)
+        await client.get_heroes()
+        await client.get_patches()
+        await client.get_leagues()
+        await client.get_league_matches(3)
+        await client.get_teams_page(4)
+        await client.get_team(2)
+        await client.get_team_matches(2)
+        await client.get_pro_players()
+        first_calls = calls
+        await client.get_match(1)
+        await client.get_teams_page(4)
+    assert calls == first_calls == 9
+    entries = store.entries(limit=20).entries
+    assert len(entries) == 9
+    assert {
+        entry.category for entry in entries if entry.operation in {"get_heroes", "get_patches"}
+    } == {"long"}
+    assert all(
+        entry.category == "short"
+        for entry in entries
+        if entry.operation not in {"get_heroes", "get_patches"}
+    )
+
+
+@pytest.mark.asyncio
+async def test_invalid_success_shape_is_not_cached(tmp_path) -> None:
+    calls = 0
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        return httpx.Response(200, json={"wrong": True})
+
+    store = CacheStore(tmp_path / "cache")
+    async with OpenDotaClient(
+        Settings(cache_dir=tmp_path / "cache"),
+        transport=httpx.MockTransport(handler),
+        cache_store=store,
+    ) as client:
+        for _ in range(2):
+            with pytest.raises(UpstreamError, match="top-level shape"):
+                await client.get_leagues()
+    assert calls == 2
+    assert store.info().entry_count == 0
+
+
+@pytest.mark.asyncio
+async def test_async_lease_renews_through_commit(tmp_path) -> None:
+    ready = asyncio.Event()
+    loop = asyncio.get_running_loop()
+
+    class TrackingStore(CacheStore):
+        renewals = 0
+
+        def renew_population(self, identity, lease, lease_seconds=30.0):
+            self.renewals += 1
+            loop.call_soon_threadsafe(ready.set)
+            return super().renew_population(identity, lease, lease_seconds)
+
+        def store(self, *args, **kwargs):
+            assert self.renewals > 0
+            return super().store(*args, **kwargs)
+
+    store = TrackingStore(tmp_path / "cache")
+
+    async def handler(_request: httpx.Request) -> httpx.Response:
+        await ready.wait()
+        return httpx.Response(200, json=[])
+
+    async with OpenDotaClient(
+        Settings(cache_dir=tmp_path / "cache"),
+        transport=httpx.MockTransport(handler),
+        cache_store=store,
+        lease_renewal_interval=0,
+    ) as client:
+        assert await client.get_leagues() == []
+    assert store.renewals >= 1 and store.info().entry_count == 1
+
+
+@pytest.mark.asyncio
+async def test_lease_renewal_failure_cannot_mask_fresh_success(tmp_path, caplog) -> None:
+    attempted = asyncio.Event()
+    loop = asyncio.get_running_loop()
+
+    class FailingRenewalStore(CacheStore):
+        attempted = False
+
+        def renew_population(self, identity, lease, lease_seconds=30.0):
+            self.attempted = True
+            loop.call_soon_threadsafe(attempted.set)
+            raise OSError("simulated renewal failure")
+
+    store = FailingRenewalStore(tmp_path / "cache")
+
+    async def handler(_request: httpx.Request) -> httpx.Response:
+        await attempted.wait()
+        return httpx.Response(200, json=[])
+
+    async with OpenDotaClient(
+        Settings(cache_dir=tmp_path / "cache"),
+        transport=httpx.MockTransport(handler),
+        cache_store=store,
+        lease_renewal_interval=0,
+    ) as client:
+        assert await client.get_leagues() == []
+    assert "renewal failed" in caplog.text.lower()
 
 
 @pytest.mark.asyncio

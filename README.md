@@ -38,6 +38,22 @@ With a stable league/team ID, call a discovery tool and pass a returned match ID
 
 Expected validation, ambiguity, partial-data, and upstream failures are sparse structured diagnostics. Clean successes omit generic status, empty warnings, and null errors. Labels can be null while authoritative numeric IDs remain. Player display identity uses a professional name or explicitly marked Steam32 fallback—never a Steam persona name.
 
+## Shared response cache
+
+Successful OpenDota GET responses are retained in an owner-only SQLite cache across local MCP
+processes and restarts. Most responses have a fixed 15-minute lifetime; heroes, patches, and
+confirmed parsed matches have a fixed one-day lifetime. Hits never extend expiry, failures are not
+stored, and cache failures fall back to ordinary upstream behavior without serving stale data.
+
+The cache defaults to the platform user-cache directory and a retained main-database maximum of
+1 GiB. Override these with `OPENDOTA_CACHE_DIR` and `OPENDOTA_CACHE_MAX_BYTES`. Inspect bounded,
+credential-free metadata with `open-dota-mcp cache info [--json]` and
+`open-dota-mcp cache entries [--limit 1..500] [--json]`. Remove response and usage state with
+`open-dota-mcp cache clear --yes`; generation protection prevents older in-flight requests from
+repopulating it. Pagination snapshots remain separate, process-local, bounded to 32 traversals,
+and unaffected by inspection, eviction, or clear. Never put an API key in cache paths or command
+arguments.
+
 ## Troubleshooting
 
 - `continuation_expired`: the 30-minute snapshot expired, was evicted, or the process restarted. Begin the same query without a token.

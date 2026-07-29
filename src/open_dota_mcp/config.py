@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import os
+import sys
 from dataclasses import dataclass, field
+from pathlib import Path
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,6 +25,8 @@ class Settings:
     retry_delay_cap: float = 5.0
     snapshot_ttl_seconds: float = 1800.0
     snapshot_capacity: int = 32
+    cache_dir: Path = field(default_factory=lambda: _default_cache_dir())
+    cache_max_bytes: int = 1_073_741_824
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -54,6 +58,8 @@ class Settings:
             snapshot_capacity=int(
                 os.getenv("OPENDOTA_SNAPSHOT_CAPACITY", defaults.snapshot_capacity)
             ),
+            cache_dir=Path(os.getenv("OPENDOTA_CACHE_DIR", str(defaults.cache_dir))).expanduser(),
+            cache_max_bytes=int(os.getenv("OPENDOTA_CACHE_MAX_BYTES", defaults.cache_max_bytes)),
         )
         settings.validate()
         return settings
@@ -72,8 +78,22 @@ class Settings:
             "retry_delay_cap": self.retry_delay_cap,
             "snapshot_ttl_seconds": self.snapshot_ttl_seconds,
             "snapshot_capacity": self.snapshot_capacity,
+            "cache_max_bytes": self.cache_max_bytes,
         }
         if invalid := [name for name, value in positive.items() if value <= 0]:
             raise ValueError(f"Settings must be positive: {', '.join(invalid)}")
         if self.max_attempts < 1:
             raise ValueError("max_attempts must be at least 1")
+        if self.cache_max_bytes < 65_536:
+            raise ValueError("cache_max_bytes is too small for initialized storage")
+        if not str(self.cache_dir):
+            raise ValueError("cache_dir must not be empty")
+
+
+def _default_cache_dir() -> Path:
+    """Return the platform-specific per-user cache directory."""
+    if sys.platform == "darwin":
+        root = Path.home() / "Library" / "Caches"
+    else:
+        root = Path(os.getenv("XDG_CACHE_HOME", Path.home() / ".cache"))
+    return root / "open-dota-mcp"
