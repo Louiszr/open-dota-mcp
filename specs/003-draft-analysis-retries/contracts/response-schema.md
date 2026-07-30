@@ -53,8 +53,7 @@ in structured logs rather than the MCP response.
 | `invalid_team_id` | Missing or nonpositive ID | Use a positive stable ID |
 | `identity_not_found` | Team ID has no resolved team | Resolve the name through existing lookup |
 | `invalid_lookback_count` | Outside 1-100 | Use 1-100 |
-| `invalid_version_pattern` | Blank, too long, or invalid regex | Correct the full-string expression |
-| `unsafe_version_pattern` | Evaluation exceeded its bound | Simplify expression |
+| `invalid_version_expression` | Blank, too long, malformed, or timed-out regex | Correct or simplify the full-string expression |
 | `patch_catalog_unavailable` | No valid dated default label | Supply a version pattern or retry later |
 | `invalid_tournament_tiers` | Invalid tier selection | Use named tiers or `all` alone |
 | `invalid_filter` | Unsupported side/result/first-ban | Use the documented enum |

@@ -138,13 +138,63 @@ async def test_twenty_callers_share_identical_exhausted_failure_then_one_new_att
     failures = [outcome for outcome in outcomes if isinstance(outcome, UpstreamError)]
     assert calls == 1
     assert len(failures) == 20
-    assert all(error.retry_exhausted and error.code == "upstream_unavailable" for error in failures)
+    assert all(
+        error.retry_exhausted
+        and error.code == "upstream_unavailable"
+        and error.reason == "attempt_limit"
+        for error in failures
+    )
     assert {
         (str(error), error.status_code, error.retry_exhausted, error.retryable_later)
         for error in failures
-    } == {("OpenDota is temporarily unavailable", 503, True, True)}
+    } == {("OpenDota availability recovery exhausted the attempt budget", 503, True, True)}
     with pytest.raises(UpstreamError):
         await clients[0].get_leagues()
+    assert calls == 2
+    await asyncio.gather(*(client.aclose() for client in clients))
+
+
+@pytest.mark.asyncio
+async def test_concurrent_population_has_one_shared_retry_sequence_and_cache_hit_bypass(
+    tmp_path: Path,
+) -> None:
+    cache_dir = tmp_path / "cache"
+    attached = asyncio.Event()
+    calls = 0
+
+    async def handler(_request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            await attached.wait()
+            return httpx.Response(503)
+        return httpx.Response(200, json=[{"leagueid": 1}])
+
+    async def population_sleeper(_delay: float) -> None:
+        attached.set()
+        await asyncio.sleep(0)
+
+    async def retry_sleeper(_delay: float) -> None:
+        await asyncio.sleep(0)
+
+    settings = Settings(cache_dir=cache_dir)
+    clients = [
+        OpenDotaClient(
+            settings,
+            transport=httpx.MockTransport(handler),
+            cache_store=CacheStore(cache_dir),
+            population_sleeper=population_sleeper,
+            sleeper=retry_sleeper,
+            jitter=lambda _upper: 0,
+        )
+        for _ in range(2)
+    ]
+    assert await asyncio.gather(*(client.get_leagues() for client in clients)) == [
+        [{"leagueid": 1}],
+        [{"leagueid": 1}],
+    ]
+    assert calls == 2
+    assert await clients[1].get_leagues() == [{"leagueid": 1}]
     assert calls == 2
     await asyncio.gather(*(client.aclose() for client in clients))
 

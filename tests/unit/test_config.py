@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from math import nan
 from pathlib import Path
 
 import pytest
@@ -11,8 +12,12 @@ def test_defaults_are_bounded_and_public(monkeypatch: pytest.MonkeyPatch) -> Non
     monkeypatch.delenv("OPENDOTA_API_KEY", raising=False)
     settings = Settings.from_env()
     assert settings.api_key is None
-    assert settings.max_attempts == 3
-    assert settings.retry_delay_budget == 10
+    assert settings.max_attempts == 6
+    assert settings.retry_base_delays == (2, 4, 8, 16, 32)
+    assert settings.retry_jitter_ratio == 0.2
+    assert settings.retry_delay_cap == 40
+    assert settings.retry_delay_budget == 75
+    assert settings.retry_elapsed_budget == 90
     assert settings.snapshot_ttl_seconds == 1800
     assert settings.snapshot_capacity == 32
 
@@ -21,10 +26,16 @@ def test_environment_overrides_and_secret_safe_repr(monkeypatch: pytest.MonkeyPa
     monkeypatch.setenv("OPENDOTA_API_KEY", "super-secret")
     monkeypatch.setenv("OPENDOTA_MAX_ATTEMPTS", "2")
     monkeypatch.setenv("OPENDOTA_READ_TIMEOUT", "3.5")
+    monkeypatch.setenv("OPENDOTA_RETRY_BASE_DELAYS", "3,6")
+    monkeypatch.setenv("OPENDOTA_RETRY_JITTER_RATIO", "0.1")
+    monkeypatch.setenv("OPENDOTA_RETRY_ELAPSED_BUDGET", "45")
     settings = Settings.from_env()
     assert settings.api_key == "super-secret"
     assert settings.max_attempts == 2
     assert settings.read_timeout == 3.5
+    assert settings.retry_base_delays == (3, 6)
+    assert settings.retry_jitter_ratio == 0.1
+    assert settings.retry_elapsed_budget == 45
     assert "super-secret" not in repr(settings)
 
 
@@ -48,7 +59,7 @@ def test_cache_environment_defaults_and_overrides(
     configured = Settings.from_env()
     assert configured.cache_dir == override
     assert configured.cache_max_bytes == 131_072
-    assert configured.max_attempts == 3
+    assert configured.max_attempts == 6
     assert configured.snapshot_capacity == 32
 
 
@@ -58,3 +69,18 @@ def test_cache_capacity_validation_is_secret_free(value: int) -> None:
         Settings(api_key="never-display", cache_max_bytes=value).validate()
     assert "cache_max_bytes" in str(caught.value)
     assert "never-display" not in str(caught.value)
+
+
+@pytest.mark.parametrize(
+    "settings",
+    [
+        Settings(retry_base_delays=(2, float("inf"), 8, 16, 32)),
+        Settings(retry_jitter_ratio=nan),
+        Settings(retry_jitter_ratio=1.1),
+        Settings(retry_elapsed_budget=float("inf")),
+        Settings(max_attempts=7),
+    ],
+)
+def test_retry_policy_rejects_nonfinite_and_incomplete_bounds(settings: Settings) -> None:
+    with pytest.raises(ValueError):
+        settings.validate()

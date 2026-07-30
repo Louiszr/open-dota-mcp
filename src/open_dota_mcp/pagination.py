@@ -8,6 +8,7 @@ import secrets
 import time
 from collections import OrderedDict
 from collections.abc import Callable
+from copy import deepcopy
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, TypeVar
@@ -38,6 +39,7 @@ class _Snapshot[T]:
     expires_at: float
     last_access: float
     token: str
+    context: Any = None
 
 
 class SnapshotRegistry:
@@ -75,6 +77,7 @@ class SnapshotRegistry:
         query: dict[str, Any],
         items: list[T],
         page_size: int = 20,
+        context: Any = None,
     ) -> tuple[list[T], PageMetadata]:
         """Snapshot a result set and return its bounded first page."""
         self._validate_page_size(page_size)
@@ -96,6 +99,7 @@ class SnapshotRegistry:
             expires_at=now + self.ttl_seconds,
             last_access=now,
             token=token,
+            context=deepcopy(context),
         )
         self._snapshots[snapshot_id] = snapshot
         self._tokens[token] = snapshot_id
@@ -109,6 +113,17 @@ class SnapshotRegistry:
         query: dict[str, Any] | None = None,
     ) -> tuple[list[Any], PageMetadata]:
         """Consume the current single-use token and rotate or terminate it."""
+        page, metadata, _context = self.next_page_with_context(token, tool=tool, query=query)
+        return page, metadata
+
+    def next_page_with_context(
+        self,
+        token: str,
+        *,
+        tool: str,
+        query: dict[str, Any] | None = None,
+    ) -> tuple[list[Any], PageMetadata, Any]:
+        """Consume a token and also return its immutable report envelope context."""
         self._purge_expired()
         snapshot_id = self._tokens.get(token)
         if snapshot_id is None:
@@ -139,13 +154,15 @@ class SnapshotRegistry:
         snapshot.offset = end
         if end == len(snapshot.items):
             self._snapshots.pop(snapshot_id)
-            return page, PageMetadata(
-                returned_count=len(page), page_size=snapshot.page_size, terminal=True
+            return (
+                page,
+                PageMetadata(returned_count=len(page), page_size=snapshot.page_size, terminal=True),
+                snapshot.context,
             )
         next_token = self._unique_token()
         snapshot.token = next_token
         self._tokens[next_token] = snapshot_id
-        return page, self._metadata(page, snapshot, token=next_token)
+        return page, self._metadata(page, snapshot, token=next_token), snapshot.context
 
     def _metadata(self, page: list[Any], snapshot: _Snapshot[Any], *, token: str) -> PageMetadata:
         return PageMetadata(

@@ -5,6 +5,8 @@ from __future__ import annotations
 import asyncio
 import email.utils
 import logging
+import math
+import random
 import sqlite3
 import time
 from collections.abc import Awaitable, Callable, Mapping
@@ -36,7 +38,9 @@ class OpenDotaClient:
         transport: httpx.AsyncBaseTransport | None = None,
         sleeper: Callable[[float], Awaitable[None]] = asyncio.sleep,
         clock: Callable[[], float] = time.monotonic,
+        wall_clock: Callable[[], datetime] | None = None,
         jitter: Callable[[float], float] | None = None,
+        deadline: Callable[[], float | None] | None = None,
         cache_store: CacheStore | None = None,
         population_sleeper: Callable[[float], Awaitable[None]] = asyncio.sleep,
         lease_renewal_interval: float = 10.0,
@@ -48,7 +52,9 @@ class OpenDotaClient:
             transport: Optional offline or custom HTTP transport.
             sleeper: Injectable retry sleeper.
             clock: Injectable monotonic clock.
+            wall_clock: Injectable current UTC time for HTTP-date guidance.
             jitter: Injectable jitter function accepting an upper bound.
+            deadline: Optional callable returning an absolute monotonic caller deadline.
             cache_store: Optional preconfigured persistent response store.
             population_sleeper: Injectable short cache-coordination sleeper.
             lease_renewal_interval: Injectable population renewal cadence.
@@ -72,7 +78,9 @@ class OpenDotaClient:
         )
         self._sleep = sleeper
         self._clock = clock
-        self._jitter = jitter or (lambda upper: upper * 0.5)
+        self._wall_clock = wall_clock or (lambda: datetime.now(UTC))
+        self._jitter = jitter or (lambda upper: random.uniform(0.0, upper))
+        self._deadline = deadline or (lambda: None)
         self._population_sleep = population_sleeper
         self._lease_renewal_interval = lease_renewal_interval
         self._cache = cache_store
@@ -210,6 +218,8 @@ class OpenDotaClient:
                                 status_code=failure.status_code,
                                 retry_exhausted=failure.retry_exhausted,
                                 retryable_later=failure.retryable_later,
+                                reason=failure.reason,
+                                retry_after_seconds=failure.retry_after_seconds,
                             )
                         hit = await asyncio.to_thread(self._cache.lookup, identity)
                         if hit is not None:
@@ -251,6 +261,8 @@ class OpenDotaClient:
                         status_code=exc.status_code,
                         retry_exhausted=exc.retry_exhausted,
                         retryable_later=exc.retryable_later,
+                        reason=exc.reason,
+                        retry_after_seconds=exc.retry_after_seconds,
                     )
                 except (OSError, RuntimeError, sqlite3.Error):
                     await asyncio.to_thread(self._cache.release_population, identity, lease)
@@ -290,11 +302,20 @@ class OpenDotaClient:
         return payload
 
     async def _fetch(self, path: str, *, params: Mapping[str, int | str] | None = None) -> Any:
-        """Execute the existing finite-retry HTTP behavior without cache I/O."""
+        """Execute a cancellation-safe finite retry state machine for one safe GET."""
         started = self._clock()
         delay_spent = 0.0
         last_error: UpstreamError | None = None
+        advised_delay: float | None = None
+        exhaustion_reason = "attempt_limit"
         for attempt in range(1, self.settings.max_attempts + 1):
+            gate = self._attempt_gate(started)
+            if gate is not None:
+                raise UpstreamError(
+                    "cancelled",
+                    "OpenDota request could not start before the caller deadline",
+                    reason=gate,
+                )
             try:
                 response = await self._http.get(path, params=params)
                 if response.status_code not in _RETRYABLE_STATUS:
@@ -310,7 +331,7 @@ class OpenDotaClient:
                     except ValueError as exc:
                         raise self._contract_error("OpenDota returned malformed JSON") from exc
                 last_error = self._status_error(response.status_code, exhausted=False)
-                requested_delay = self._retry_after(response.headers.get("Retry-After"))
+                advised_delay = self._retry_after(response.headers.get("Retry-After"))
             except asyncio.CancelledError:
                 raise
             except UpstreamError:
@@ -324,28 +345,55 @@ class OpenDotaClient:
                 last_error = UpstreamError(
                     code, "OpenDota could not be reached", retryable_later=True
                 )
-                requested_delay = None
+                advised_delay = None
 
             if attempt == self.settings.max_attempts:
+                exhaustion_reason = "attempt_limit"
                 break
-            delay = requested_delay if requested_delay is not None else self._backoff(attempt)
+            fallback = self._backoff(attempt)
+            delay = max(fallback, advised_delay or 0.0)
             elapsed = self._clock() - started
-            if (
-                delay < 0
-                or delay_spent + delay > self.settings.retry_delay_budget
-                or elapsed + delay > self.settings.retry_delay_budget + self.settings.read_timeout
-            ):
+            deadline = self._deadline()
+            exhaustion_reason = self._delay_gate(
+                delay,
+                delay_spent=delay_spent,
+                elapsed=elapsed,
+                deadline=deadline,
+            )
+            if exhaustion_reason:
                 break
+            logger.info(
+                "OpenDota retry scheduled operation=%s attempt=%d failure=%s delay_source=%s "
+                "delay_seconds=%.3f",
+                path.rsplit("/", 1)[-1] or "root",
+                attempt,
+                last_error.code,
+                "retry_after"
+                if advised_delay is not None and advised_delay >= fallback
+                else "fallback",
+                delay,
+            )
             await self._sleep(delay)
             delay_spent += delay
 
         assert last_error is not None
+        message = self._exhaustion_message(last_error.code, exhaustion_reason)
+        logger.warning(
+            "OpenDota retry exhausted failure=%s reason=%s elapsed_seconds=%.3f "
+            "accumulated_delay_seconds=%.3f",
+            last_error.code,
+            exhaustion_reason,
+            self._clock() - started,
+            delay_spent,
+        )
         raise UpstreamError(
             last_error.code,
-            str(last_error),
+            message,
             retry_exhausted=True,
             retryable_later=True,
             status_code=last_error.status_code,
+            reason=exhaustion_reason,
+            retry_after_seconds=advised_delay,
         )
 
     async def _renew_population(self, identity: CacheIdentity, lease: PopulationLease) -> None:
@@ -375,10 +423,38 @@ class OpenDotaClient:
             logger.warning("Shared response cache renewal ended safely: %s", exc)
 
     def _backoff(self, attempt: int) -> float:
-        base = min(
-            self.settings.retry_base_delay * (2 ** (attempt - 1)), self.settings.retry_delay_cap
-        )
-        return min(base + max(0.0, self._jitter(base)), self.settings.retry_delay_cap)
+        base = self.settings.retry_base_delays[attempt - 1]
+        jitter_max = base * self.settings.retry_jitter_ratio
+        sampled = self._jitter(jitter_max)
+        jitter = min(max(sampled, 0.0), jitter_max) if math.isfinite(sampled) else 0.0
+        return base + jitter
+
+    def _attempt_gate(self, started: float) -> str | None:
+        now = self._clock()
+        if now - started >= self.settings.retry_elapsed_budget:
+            return "elapsed_budget"
+        deadline = self._deadline()
+        if deadline is not None and now >= deadline:
+            return "deadline"
+        return None
+
+    def _delay_gate(
+        self,
+        delay: float,
+        *,
+        delay_spent: float,
+        elapsed: float,
+        deadline: float | None,
+    ) -> str | None:
+        if not math.isfinite(delay) or delay <= 0 or delay > self.settings.retry_delay_cap:
+            return "individual_delay"
+        if delay_spent + delay > self.settings.retry_delay_budget:
+            return "delay_budget"
+        if elapsed + delay >= self.settings.retry_elapsed_budget:
+            return "elapsed_budget"
+        if deadline is not None and self._clock() + delay >= deadline:
+            return "deadline"
+        return None
 
     def _validate_cacheable_payload(self, operation: str, payload: Any) -> None:
         """Reject successful HTTP bodies that fail the operation's top-level contract."""
@@ -399,12 +475,12 @@ class OpenDotaClient:
         if not isinstance(payload, list) or not all(isinstance(item, dict) for item in payload):
             raise self._contract_error("OpenDota returned an unexpected top-level shape")
 
-    @staticmethod
-    def _retry_after(raw: str | None) -> float | None:
+    def _retry_after(self, raw: str | None) -> float | None:
         if not raw:
             return None
         try:
-            return max(0.0, float(raw.strip()))
+            delay = float(raw.strip())
+            return delay if math.isfinite(delay) and delay > 0 else None
         except ValueError:
             try:
                 parsed = email.utils.parsedate_to_datetime(raw)
@@ -412,7 +488,24 @@ class OpenDotaClient:
                 return None
             if parsed.tzinfo is None:
                 parsed = parsed.replace(tzinfo=UTC)
-            return max(0.0, (parsed - datetime.now(UTC)).total_seconds())
+            delay = (parsed - self._wall_clock()).total_seconds()
+            return delay if math.isfinite(delay) and delay > 0 else None
+
+    @staticmethod
+    def _exhaustion_message(code: str, reason: str) -> str:
+        subject = {
+            "upstream_rate_limited": "OpenDota rate-limit recovery",
+            "upstream_timeout": "OpenDota timeout recovery",
+            "upstream_unavailable": "OpenDota availability recovery",
+        }.get(code, "OpenDota recovery")
+        label = {
+            "attempt_limit": "attempt budget",
+            "individual_delay": "individual delay budget",
+            "delay_budget": "delay budget",
+            "elapsed_budget": "elapsed-time budget",
+            "deadline": "caller deadline",
+        }.get(reason, "retry budget")
+        return f"{subject} exhausted the {label}"
 
     @staticmethod
     def _status_error(status_code: int, *, exhausted: bool) -> UpstreamError:

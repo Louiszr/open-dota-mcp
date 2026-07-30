@@ -185,7 +185,7 @@ async def test_mcp_retry_after_recovery_exhaustion_and_nonretryable_failure() ->
         response = await session.call_tool("list_pro_team_matches", {"team_id": 1})
     await upstream.aclose()
     assert response.structured_content["matches"][0]["match_id"] == 1
-    assert attempts == 2 and delays == [0]
+    assert attempts == 2 and delays == [2]
 
     for status, expected in [(503, "upstream_unavailable"), (403, "upstream_rejected")]:
         upstream = OpenDotaClient(

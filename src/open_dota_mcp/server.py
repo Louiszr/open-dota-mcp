@@ -1,4 +1,4 @@
-"""Exactly-three-tool FastMCP server construction and dependency wiring."""
+"""Exactly-four-tool FastMCP server construction and dependency wiring."""
 
 from __future__ import annotations
 
@@ -13,9 +13,11 @@ from fastmcp import FastMCP
 from open_dota_mcp.clients.opendota import OpenDotaClient
 from open_dota_mcp.config import Settings
 from open_dota_mcp.errors import ToolErrorDetail
+from open_dota_mcp.models.analysis import AnalysisToolResponse
 from open_dota_mcp.models.discovery import TeamResponse, TournamentResponse
 from open_dota_mcp.models.drafts import DraftToolResponse
 from open_dota_mcp.pagination import SnapshotRegistry
+from open_dota_mcp.services.analysis import AnalysisService
 from open_dota_mcp.services.drafts import DraftService
 from open_dota_mcp.services.matches import MatchDiscoveryService
 
@@ -36,7 +38,7 @@ def create_server(
         settings: Optional environment-independent runtime settings.
 
     Returns:
-        A FastMCP server exposing exactly three read-only tools.
+        A FastMCP server exposing exactly four read-only tools.
     """
     runtime_settings = settings or Settings.from_env()
     owns_client = client is None
@@ -47,6 +49,7 @@ def create_server(
     )
     draft_service = DraftService(runtime_client)
     discovery_service = MatchDiscoveryService(runtime_client, runtime_registry)
+    analysis_service = AnalysisService(runtime_client, runtime_registry)
 
     @asynccontextmanager
     async def lifespan(_server: FastMCP) -> AsyncIterator[dict[str, Any]]:
@@ -213,6 +216,67 @@ def create_server(
             page_size=page_size,
             continuation_token=continuation_token,
         )
+
+    @server.tool(
+        name="analyze_pro_team_drafts",
+        annotations={
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": True,
+        },
+        description=(
+            "Build a lean team-relative drafting report from a positive stable team ID. "
+            "The newest 25 completed matches by default (maximum 100) consume the quota before "
+            "parse status and filters. Tier 1 is premium; tournament_tiers accepts distinct "
+            "premium, professional, and amateur values, or all by itself. Omitting "
+            "version_pattern selects the latest dated catalog patch; supplied expressions use "
+            "full-string matching, a 64-character limit, and a 50ms evaluation timeout. Side, "
+            "result, and first-ban filters are team relative and combine with AND. The slim "
+            "default returns match core plus aggregate parse coverage; the five include groups "
+            "draft, lanes, "
+            "economy, structures, and/or objectives additively. Sparse null or omitted evidence "
+            "may occur. Pages default to 10 and allow at most 25 matches; follow only the opaque "
+            "next_cursor for immutable continuation with no upstream reads. OpenDota retry "
+            "recovery is finite and returns actionable exhaustion guidance."
+        ),
+    )
+    async def analyze_pro_team_drafts(
+        team_id: int | None = None,
+        lookback_count: int | None = None,
+        version_pattern: str | None = None,
+        tournament_tiers: list[str] | None = None,
+        side: str | None = None,
+        result: str | None = None,
+        first_ban: str | None = None,
+        include: list[str] | None = None,
+        page_size: int | None = None,
+        continuation_cursor: str | None = None,
+    ) -> AnalysisToolResponse:
+        """Return a bounded drafting analysis page or concise error."""
+        try:
+            return await analysis_service.analyze(
+                team_id=team_id,
+                lookback_count=lookback_count,
+                version_pattern=version_pattern,
+                tournament_tiers=tournament_tiers,
+                side=side,
+                result=result,
+                first_ban=first_ban,
+                include=include,
+                page_size=page_size,
+                continuation_cursor=continuation_cursor,
+            )
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Unexpected analysis tool failure (details masked from MCP response)")
+            return AnalysisToolResponse(
+                error={
+                    "code": "upstream_unavailable",
+                    "message": "Drafting analysis failed safely",
+                }
+            )
 
     return server
 

@@ -87,13 +87,14 @@ class JourneyClient:
 
 
 @pytest.mark.asyncio
-async def test_exactly_three_typed_tools_and_known_id_two_call_flow() -> None:
+async def test_exactly_four_typed_tools_and_known_id_two_call_flow() -> None:
     async with Client(create_server(client=JourneyClient())) as session:  # type: ignore[arg-type]
         tools = await session.list_tools()
         assert [tool.name for tool in tools] == [
             "get_pro_match_drafts",
             "list_pro_tournament_matches",
             "list_pro_team_matches",
+            "analyze_pro_team_drafts",
         ]
         assert all(tool.description and tool.inputSchema["type"] == "object" for tool in tools)
         discovery = await session.call_tool("list_pro_tournament_matches", {"league_id": 10})

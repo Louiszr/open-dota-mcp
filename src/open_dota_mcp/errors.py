@@ -62,6 +62,19 @@ class ToolErrorDetail(SparseModel):
     retryable_later: bool = False
     valid_values: list[str] | None = Field(default=None, exclude_if=omit_none_or_empty)
     restart_required: bool | None = Field(default=None, exclude_if=omit_none)
+    reason: str | None = Field(default=None, exclude_if=omit_none)
+    retry_after_seconds: float | None = Field(default=None, gt=0, exclude_if=omit_none)
+
+
+class AnalysisErrorDetail(SparseModel):
+    """Minimal stable error contract for the drafting analysis tool."""
+
+    code: str = Field(min_length=1)
+    message: str = Field(min_length=1)
+    valid_values: list[str] | None = Field(default=None, exclude_if=omit_none_or_empty)
+    restart_required: bool | None = Field(default=None, exclude_if=omit_none)
+    reason: str | None = Field(default=None, exclude_if=omit_none)
+    retry_after_seconds: float | None = Field(default=None, gt=0, exclude_if=omit_none)
 
 
 class ErrorResponse(SparseModel):
@@ -81,6 +94,8 @@ class UpstreamError(RuntimeError):
         retry_exhausted: bool = False,
         retryable_later: bool = False,
         status_code: int | None = None,
+        reason: str | None = None,
+        retry_after_seconds: float | None = None,
     ) -> None:
         """Create an upstream error without retaining request credentials.
 
@@ -90,12 +105,16 @@ class UpstreamError(RuntimeError):
             retry_exhausted: Whether all safe attempts were consumed.
             retryable_later: Whether a later call may succeed.
             status_code: Optional HTTP status, retained only as an integer.
+            reason: Optional stable retry exhaustion reason.
+            retry_after_seconds: Optional safe actionable upstream delay.
         """
         super().__init__(message)
         self.code = code
         self.retry_exhausted = retry_exhausted
         self.retryable_later = retryable_later
         self.status_code = status_code
+        self.reason = reason
+        self.retry_after_seconds = retry_after_seconds
 
     def detail(
         self,
@@ -122,6 +141,17 @@ class UpstreamError(RuntimeError):
             target=target,
             retry_exhausted=self.retry_exhausted,
             retryable_later=self.retryable_later,
+            reason=self.reason,
+            retry_after_seconds=self.retry_after_seconds,
+        )
+
+    def analysis_detail(self) -> AnalysisErrorDetail:
+        """Convert this exception into the lean analysis error contract."""
+        return AnalysisErrorDetail(
+            code=self.code,
+            message=str(self),
+            reason=self.reason,
+            retry_after_seconds=self.retry_after_seconds,
         )
 
 

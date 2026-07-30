@@ -18,8 +18,8 @@
 
 **Purpose**: Add the feature dependency and deterministic source data used throughout implementation.
 
-- [ ] T001 Add the timeout-capable `regex` runtime dependency and lock it with uv in `pyproject.toml` and `uv.lock`
-- [ ] T002 [P] Create explicit multi-patch, multi-tier, parsed/unparsed, draft, timeline, structure, and objective fixtures in `tests/fixtures/opendota/analysis.json`
+- [X] T001 Add the timeout-capable `regex` runtime dependency and lock it with uv in `pyproject.toml` and `uv.lock`
+- [X] T002 [P] Create explicit multi-patch, multi-tier, parsed/unparsed, draft, timeline, structure, and objective fixtures in `tests/fixtures/opendota/analysis.json`
 
 ---
 
@@ -29,10 +29,10 @@
 
 **⚠️ CRITICAL**: Complete this phase before beginning any user-story implementation.
 
-- [ ] T003 [P] Add public-model tests for retry exhaustion details, sparse report serialization, coverage invariants, enum validation, and prohibited fields in `tests/unit/test_analysis_models.py`
-- [ ] T004 Extend structured errors with exhaustion reason, optional safe retry delay, and concise analysis validation responses without exposing raw guidance or diagnostics in `src/open_dota_mcp/errors.py`
-- [ ] T005 Implement typed sparse request, envelope, core-match, filter, coverage, and optional evidence models from the data model in `src/open_dota_mcp/models/analysis.py`
-- [ ] T006 Export the new public analysis model surface without changing existing model contracts in `src/open_dota_mcp/models/__init__.py`
+- [X] T003 [P] Add public-model tests for retry exhaustion details, sparse report serialization, coverage invariants, enum validation, and prohibited fields in `tests/unit/test_analysis_models.py`
+- [X] T004 Extend structured errors with exhaustion reason, optional safe retry delay, and concise analysis validation responses without exposing raw guidance or diagnostics in `src/open_dota_mcp/errors.py`
+- [X] T005 Implement typed sparse request, envelope, core-match, filter, coverage, and optional evidence models from the data model in `src/open_dota_mcp/models/analysis.py`
+- [X] T006 Export the new public analysis model surface without changing existing model contracts in `src/open_dota_mcp/models/__init__.py`
 
 **Checkpoint**: Shared error and model contracts are ready for all four stories.
 
@@ -46,17 +46,17 @@
 
 ### Tests for User Story 1
 
-- [ ] T007 [P] [US1] Update public `Settings.from_env()` and `Settings.validate()` tests for six attempts, 2/4/8/16/32 bases, 20% jitter, 40-second delay cap, 75-second accumulated budget, 90-second elapsed budget, finite validation, and secret-safe representations in `tests/unit/test_config.py`
-- [ ] T008 [P] [US1] Add deterministic client tests for all retryable status/network classes, `Retry-After` validity classes, repeated short guidance, additive jitter bounds, safe-method classification, recovery, attempt/delay/elapsed/deadline exhaustion, cancellation during request or sleep, sanitized logging, and no extra request in `tests/unit/test_opendota_client.py`
-- [ ] T009 [P] [US1] Add tool-boundary recovery, structured exhaustion, cancellation, and non-retryable regression tests for all existing MCP tools in `tests/contract/test_team_tool.py`, `tests/contract/test_tournament_tool.py`, and `tests/contract/test_draft_tool.py`
-- [ ] T010 [P] [US1] Extend cache coordination tests for cache-hit bypass, one retry sequence per concurrent population, shared recovery/exhaustion, and waiter cancellation in `tests/integration/test_cache_multiprocess.py`
+- [X] T007 [P] [US1] Update public `Settings.from_env()` and `Settings.validate()` tests for six attempts, 2/4/8/16/32 bases, 20% jitter, 40-second delay cap, 75-second accumulated budget, 90-second elapsed budget, finite validation, and secret-safe representations in `tests/unit/test_config.py`
+- [X] T008 [P] [US1] Add deterministic client tests for all retryable status/network classes, `Retry-After` validity classes, repeated short guidance, additive jitter bounds, safe-method classification, recovery, attempt/delay/elapsed/deadline exhaustion, cancellation during request or sleep, sanitized logging, and no extra request in `tests/unit/test_opendota_client.py`
+- [X] T009 [P] [US1] Add tool-boundary recovery, structured exhaustion, cancellation, and non-retryable regression tests for all existing MCP tools in `tests/contract/test_team_tool.py`, `tests/contract/test_tournament_tool.py`, and `tests/contract/test_draft_tool.py`
+- [X] T010 [P] [US1] Extend cache coordination tests for cache-hit bypass, one retry sequence per concurrent population, shared recovery/exhaustion, and waiter cancellation in `tests/integration/test_cache_multiprocess.py`
 
 ### Implementation for User Story 1
 
-- [ ] T011 [US1] Replace legacy retry settings with validated six-attempt, base-sequence, jitter, individual-delay, accumulated-delay, and elapsed-time defaults and environment variables in `src/open_dota_mcp/config.py`
-- [ ] T012 [US1] Implement standards-compliant seconds/date `Retry-After` parsing, retryable safe-GET classification, bounded additive jitter, monotonic elapsed accounting, caller-deadline checks, prompt cancellation, structured exhaustion, and secret-safe diagnostics inside the cache population owner in `src/open_dota_mcp/clients/opendota.py`
-- [ ] T013 [US1] Update retry configuration examples for the revised finite budgets in `.env.example`
-- [ ] T014 [US1] Run the focused retry and cache tests and resolve regressions in `tests/unit/test_config.py`, `tests/unit/test_opendota_client.py`, and `tests/integration/test_cache_multiprocess.py`
+- [X] T011 [US1] Replace legacy retry settings with validated six-attempt, base-sequence, jitter, individual-delay, accumulated-delay, and elapsed-time defaults and environment variables in `src/open_dota_mcp/config.py`
+- [X] T012 [US1] Implement standards-compliant seconds/date `Retry-After` parsing, retryable safe-GET classification, bounded additive jitter, monotonic elapsed accounting, caller-deadline checks, prompt cancellation, structured exhaustion, and secret-safe diagnostics inside the cache population owner in `src/open_dota_mcp/clients/opendota.py`
+- [X] T013 [US1] Update retry configuration examples for the revised finite budgets in `.env.example`
+- [X] T014 [US1] Run the focused retry and cache tests and resolve regressions in `tests/unit/test_config.py`, `tests/unit/test_opendota_client.py`, and `tests/integration/test_cache_multiprocess.py`
 
 **Checkpoint**: All current read-only OpenDota operations safely recover or stop at a precise bound.
 
@@ -70,18 +70,18 @@
 
 ### Tests for User Story 2
 
-- [ ] T015 [P] [US2] Add risk-based unit tests for request validation; malformed, 64-character-boundary, full-string, and 50-millisecond-timeout patch expressions; no detail retrieval after expression rejection; latest dated patch selection; completed-match normalization/deduplication/quota; failed or malformed details counting as unparsed while preserving `parsed + unparsed = examined`; core projection; sparse failures; and five-request concurrency in `tests/unit/test_analysis_mapping.py`
-- [ ] T016 [P] [US2] Add MCP contract tests for public input schema and descriptions, slim defaults including opponent ID, valid patch/tier choices, `invalid_version_expression` correction guidance without engine diagnostics, all validation error codes, prohibited response fields, empty results, page sizes 1/10/25, terminal pages, and opaque cursor replay/mismatch/expiry behavior in `tests/contract/test_analysis_tool.py`
-- [ ] T017 [P] [US2] Add an offline end-to-end first-page and continuation journey that verifies no continuation I/O and unchanged team/filter/coverage context in `tests/integration/test_analysis_journey.py`
+- [X] T015 [P] [US2] Add risk-based unit tests for request validation; malformed, 64-character-boundary, full-string, and 50-millisecond-timeout patch expressions; no detail retrieval after expression rejection; latest dated patch selection; completed-match normalization/deduplication/quota; failed or malformed details counting as unparsed while preserving `parsed + unparsed = examined`; core projection; sparse failures; and five-request concurrency in `tests/unit/test_analysis_mapping.py`
+- [X] T016 [P] [US2] Add MCP contract tests for public input schema and descriptions, slim defaults including opponent ID, valid patch/tier choices, `invalid_version_expression` correction guidance without engine diagnostics, all validation error codes, prohibited response fields, empty results, page sizes 1/10/25, terminal pages, and opaque cursor replay/mismatch/expiry behavior in `tests/contract/test_analysis_tool.py`
+- [X] T017 [P] [US2] Add an offline end-to-end first-page and continuation journey that verifies no continuation I/O and unchanged team/filter/coverage context in `tests/integration/test_analysis_journey.py`
 
 ### Implementation for User Story 2
 
-- [ ] T018 [US2] Implement public request normalization and validation for team ID, 1-100 lookback, tier lists, include groups, page size, and continuation fingerprints; apply a 50-millisecond timeout to every full-string patch-expression evaluation; and map malformed or timed-out expressions to `invalid_version_expression` without engine diagnostics in `src/open_dota_mcp/services/analysis.py`
-- [ ] T019 [US2] Implement team resolution, reference loading, latest-patch-by-release-date selection, completed-match quota selection, bounded detail retrieval, aggregate parsed/unparsed coverage with missing, malformed, or failed details counted as unparsed, AND filtering, partial-failure isolation, and lean core projection including opponent ID in `src/open_dota_mcp/services/analysis.py`
-- [ ] T020 [US2] Extend immutable snapshot traversal to retain the report envelope, enforce a 25-item analysis page maximum, rotate single-use request-bound cursors, and expose only `next_cursor` in `src/open_dota_mcp/pagination.py`
-- [ ] T021 [US2] Register the typed read-only `analyze_pro_team_drafts` tool with its documented slim default, tier/patch semantics, quota, groups, pagination, sparse-data, and bounded-exhaustion guidance in `src/open_dota_mcp/server.py`
-- [ ] T022 [US2] Export the analysis service through the package service surface in `src/open_dota_mcp/services/__init__.py`
-- [ ] T023 [US2] Run and pass default-selection, validation, empty-result, pagination, and journey tests in `tests/unit/test_analysis_mapping.py`, `tests/contract/test_analysis_tool.py`, and `tests/integration/test_analysis_journey.py`
+- [X] T018 [US2] Implement public request normalization and validation for team ID, 1-100 lookback, tier lists, include groups, page size, and continuation fingerprints; apply a 50-millisecond timeout to every full-string patch-expression evaluation; and map malformed or timed-out expressions to `invalid_version_expression` without engine diagnostics in `src/open_dota_mcp/services/analysis.py`
+- [X] T019 [US2] Implement team resolution, reference loading, latest-patch-by-release-date selection, completed-match quota selection, bounded detail retrieval, aggregate parsed/unparsed coverage with missing, malformed, or failed details counted as unparsed, AND filtering, partial-failure isolation, and lean core projection including opponent ID in `src/open_dota_mcp/services/analysis.py`
+- [X] T020 [US2] Extend immutable snapshot traversal to retain the report envelope, enforce a 25-item analysis page maximum, rotate single-use request-bound cursors, and expose only `next_cursor` in `src/open_dota_mcp/pagination.py`
+- [X] T021 [US2] Register the typed read-only `analyze_pro_team_drafts` tool with its documented slim default, tier/patch semantics, quota, groups, pagination, sparse-data, and bounded-exhaustion guidance in `src/open_dota_mcp/server.py`
+- [X] T022 [US2] Export the analysis service through the package service surface in `src/open_dota_mcp/services/__init__.py`
+- [X] T023 [US2] Run and pass default-selection, validation, empty-result, pagination, and journey tests in `tests/unit/test_analysis_mapping.py`, `tests/contract/test_analysis_tool.py`, and `tests/integration/test_analysis_journey.py`
 
 **Checkpoint**: The fourth MCP tool returns a complete, independently usable lean drafting report with deterministic pagination.
 
@@ -95,13 +95,13 @@
 
 ### Tests for User Story 3
 
-- [ ] T024 [P] [US3] Add mapping tests for team placement, team-relative side/result, authoritative earliest-ban order, unknown chronology, anomalous team membership, and combined-filter truth tables in `tests/unit/test_analysis_mapping.py`
-- [ ] T025 [P] [US3] Add public tool tests for each scenario filter, AND combinations, invalid values, unknown-value exclusion, and the absence of filter evaluations or exclusion reasons in `tests/contract/test_analysis_tool.py`
+- [X] T024 [P] [US3] Add mapping tests for team placement, team-relative side/result, authoritative earliest-ban order, unknown chronology, anomalous team membership, and combined-filter truth tables in `tests/unit/test_analysis_mapping.py`
+- [X] T025 [P] [US3] Add public tool tests for each scenario filter, AND combinations, invalid values, unknown-value exclusion, and the absence of filter evaluations or exclusion reasons in `tests/contract/test_analysis_tool.py`
 
 ### Implementation for User Story 3
 
-- [ ] T026 [US3] Implement selected-team placement, side/result transformation, authoritative first-ban derivation, unknown handling, and conjunctive scenario filtering in `src/open_dota_mcp/services/analysis.py`
-- [ ] T027 [US3] Run and pass the complete scenario-filter acceptance matrix in `tests/unit/test_analysis_mapping.py` and `tests/contract/test_analysis_tool.py`
+- [X] T026 [US3] Implement selected-team placement, side/result transformation, authoritative first-ban derivation, unknown handling, and conjunctive scenario filtering in `src/open_dota_mcp/services/analysis.py`
+- [X] T027 [US3] Run and pass the complete scenario-filter acceptance matrix in `tests/unit/test_analysis_mapping.py` and `tests/contract/test_analysis_tool.py`
 
 **Checkpoint**: Agents can compare exactly the desired team-relative competitive conditions without client-side filtering.
 
@@ -115,18 +115,18 @@
 
 ### Tests for User Story 4
 
-- [ ] T028 [P] [US4] Add risk-based mapping tests for per-team draft rounds, unique player association, matchup knowledge, aligned at-or-before checkpoint lookup, team-relative lane/economy differences, compact structures, attributable objectives, Tormentor applicability, and incomplete/ambiguous evidence in `tests/unit/test_analysis_mapping.py`
-- [ ] T029 [P] [US4] Extend public model tests for each independently additive evidence group, all-groups serialization, nullable checkpoints, verified empty collections, and exclusion of IDs/provenance/quality/reason wrappers in `tests/unit/test_analysis_models.py`
-- [ ] T030 [P] [US4] Add MCP contract tests for the slim default, every supported group, all groups together, duplicate/invalid selections, 25-item pages, terminal continuation, stable newest-first perspective, and contract-document examples in `tests/contract/test_analysis_tool.py`
+- [X] T028 [P] [US4] Add risk-based mapping tests for per-team draft rounds, unique player association, matchup knowledge, aligned at-or-before checkpoint lookup, team-relative lane/economy differences, compact structures, attributable objectives, Tormentor applicability, and incomplete/ambiguous evidence in `tests/unit/test_analysis_mapping.py`
+- [X] T029 [P] [US4] Extend public model tests for each independently additive evidence group, all-groups serialization, nullable checkpoints, verified empty collections, and exclusion of IDs/provenance/quality/reason wrappers in `tests/unit/test_analysis_models.py`
+- [X] T030 [P] [US4] Add MCP contract tests for the slim default, every supported group, all groups together, duplicate/invalid selections, 25-item pages, terminal continuation, stable newest-first perspective, and contract-document examples in `tests/contract/test_analysis_tool.py`
 
 ### Implementation for User Story 4
 
-- [ ] T031 [P] [US4] Add reusable authoritative chronology, per-team pick/ban round, unique player identity, and hero-to-lane matchup helpers without altering the existing draft tool contract in `src/open_dota_mcp/services/drafts.py`
-- [ ] T032 [US4] Implement draft evidence projection and safe omission for ambiguous action order, player mapping, lane composition, or matchup knowledge in `src/open_dota_mcp/services/analysis.py`
-- [ ] T033 [US4] Implement latest-at-or-before sampling plus analyzed-team lane XP/last-hit differences, gold advantages, and per-hero total-gold observations at 10/20 minutes in `src/open_dota_mcp/services/analysis.py`
-- [ ] T034 [US4] Implement timestamp-attributed compact structure-loss ledgers at 10/20 minutes and Roshan/Tormentor event-time ledgers through 25 minutes with correct null/empty semantics in `src/open_dota_mcp/services/analysis.py`
-- [ ] T035 [US4] Wire requested groups additively into immutable match projections without computing or serializing unrequested groups in `src/open_dota_mcp/services/analysis.py`
-- [ ] T036 [US4] Run and pass the complete evidence mapping, model, contract, and maximum-page acceptance suite in `tests/unit/test_analysis_mapping.py`, `tests/unit/test_analysis_models.py`, and `tests/contract/test_analysis_tool.py`
+- [X] T031 [P] [US4] Add reusable authoritative chronology, per-team pick/ban round, unique player identity, and hero-to-lane matchup helpers without altering the existing draft tool contract in `src/open_dota_mcp/services/drafts.py`
+- [X] T032 [US4] Implement draft evidence projection and safe omission for ambiguous action order, player mapping, lane composition, or matchup knowledge in `src/open_dota_mcp/services/analysis.py`
+- [X] T033 [US4] Implement latest-at-or-before sampling plus analyzed-team lane XP/last-hit differences, gold advantages, and per-hero total-gold observations at 10/20 minutes in `src/open_dota_mcp/services/analysis.py`
+- [X] T034 [US4] Implement timestamp-attributed compact structure-loss ledgers at 10/20 minutes and Roshan/Tormentor event-time ledgers through 25 minutes with correct null/empty semantics in `src/open_dota_mcp/services/analysis.py`
+- [X] T035 [US4] Wire requested groups additively into immutable match projections without computing or serializing unrequested groups in `src/open_dota_mcp/services/analysis.py`
+- [X] T036 [US4] Run and pass the complete evidence mapping, model, contract, and maximum-page acceptance suite in `tests/unit/test_analysis_mapping.py`, `tests/unit/test_analysis_models.py`, and `tests/contract/test_analysis_tool.py`
 
 **Checkpoint**: Every requested evidence group is accurate, sparse, independently selectable, and agent-context bounded.
 
@@ -136,12 +136,14 @@
 
 **Purpose**: Synchronize documentation, prove MCP interoperability, and complete the independent quality gate.
 
-- [ ] T037 [P] Document `analyze_pro_team_drafts`, its focused inputs, slim default, five groups, pagination, aggregate coverage, tier choices, patch matching, checkpoint semantics, sparse evidence, retry bounds, and lookup workflow in `README.md`
-- [ ] T038 [P] Update the Codex-compatible stdio integration to list exactly four read-only tools, invoke the report, follow its cursor, keep stdout protocol-only, and keep diagnostics on stderr in `tests/integration/test_stdio.py`
-- [ ] T039 Validate every automated scenario and command in the completed feature guide and correct discrepancies in `specs/003-draft-analysis-retries/quickstart.md`
-- [ ] T040 Reconcile the live tool schema and serialized response/error examples against `specs/003-draft-analysis-retries/contracts/mcp-tool.md` and `specs/003-draft-analysis-retries/contracts/response-schema.md`
-- [ ] T041 Run the complete regression suite and resolve compatibility failures across `tests/contract/`, `tests/unit/`, and `tests/integration/`
-- [ ] T042 Require an independent sub-agent that performed no implementation to audit public-surface and risk-based tests, run `uv run ruff check .`, `uv run ruff format --check .`, and `uv run pytest`, require remediation and re-run on any failure, and record the passing result in `specs/003-draft-analysis-retries/tasks.md`
+- [X] T037 [P] Document `analyze_pro_team_drafts`, its focused inputs, slim default, five groups, pagination, aggregate coverage, tier choices, patch matching, checkpoint semantics, sparse evidence, retry bounds, and lookup workflow in `README.md`
+- [X] T038 [P] Update the Codex-compatible stdio integration to list exactly four read-only tools, invoke the report, follow its cursor, keep stdout protocol-only, and keep diagnostics on stderr in `tests/integration/test_stdio.py`
+- [X] T039 Validate every automated scenario and command in the completed feature guide and correct discrepancies in `specs/003-draft-analysis-retries/quickstart.md`
+- [X] T040 Reconcile the live tool schema and serialized response/error examples against `specs/003-draft-analysis-retries/contracts/mcp-tool.md` and `specs/003-draft-analysis-retries/contracts/response-schema.md`
+- [X] T041 Run the complete regression suite and resolve compatibility failures across `tests/contract/`, `tests/unit/`, and `tests/integration/`
+- [X] T042 Require an independent sub-agent that performed no implementation to audit public-surface and risk-based tests, run `uv run ruff check .`, `uv run ruff format --check .`, and `uv run pytest`, require remediation and re-run on any failure, and record the passing result in `specs/003-draft-analysis-retries/tasks.md`
+  - Independent QA `/root/independent_qa` initially found a parse-coverage discrepancy and missing risk matrices; remediation was completed and independently re-reviewed.
+  - Final QA result: required public/risk-based coverage complete; `uv run ruff check .` exit 0; `uv run ruff format --check .` exit 0 (88 files); `uv run pytest` exit 0 (202 passed, 1 skipped, 20 warnings).
 
 ---
 

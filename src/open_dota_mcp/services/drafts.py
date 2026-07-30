@@ -179,6 +179,64 @@ def validate_include(include: list[str] | None) -> set[str]:
     return groups
 
 
+def authoritative_draft_actions(raw: dict[str, Any]) -> tuple[list[dict[str, Any]], bool]:
+    """Return globally ordered draft actions when source order is unambiguous."""
+    actions = [value for value in raw.get("picks_bans", []) if isinstance(value, dict)]
+    orders = [_integer(value.get("order")) for value in actions]
+    authoritative = (
+        bool(actions)
+        and all(value is not None for value in orders)
+        and len(set(orders)) == len(orders)
+    )
+    ordered = sorted(actions, key=lambda value: int(value["order"])) if authoritative else actions
+    return ordered, authoritative
+
+
+def draft_action_rounds(actions: list[dict[str, Any]]) -> dict[int, int]:
+    """Map action object identity to per-team, per-phase run number."""
+    counters: dict[tuple[int, str], int] = {}
+    last_type: dict[int, str] = {}
+    rounds: dict[int, int] = {}
+    for action in actions:
+        team = _integer(action.get("team"))
+        action_type = "pick" if action.get("is_pick") is True else "ban"
+        if team not in {0, 1}:
+            continue
+        key = (team, action_type)
+        if last_type.get(team) != action_type:
+            counters[key] = counters.get(key, 0) + 1
+            last_type[team] = action_type
+        rounds[id(action)] = counters[key]
+    return rounds
+
+
+def unique_player_for_hero(
+    players: list[dict[str, Any]], hero_id: int, side: Side
+) -> dict[str, Any] | None:
+    """Return the unique same-side player for a picked hero, or no guessed identity."""
+    candidates = [
+        value
+        for value in players
+        if _integer(value.get("hero_id")) == hero_id and _player_side(value) == side
+    ]
+    return candidates[0] if len(candidates) == 1 else None
+
+
+def hero_lane_opponents(
+    players: list[dict[str, Any]], side: Side, lane_role: int | None
+) -> list[dict[str, Any]]:
+    """Return final opposing-lane players when the lane role is authoritative."""
+    if lane_role not in {1, 2, 3}:
+        return []
+    opposite = Side.DIRE if side == Side.RADIANT else Side.RADIANT
+    return [
+        player
+        for player in players
+        if _player_side(player) == opposite
+        and (_integer(player.get("lane_role")) or _integer(player.get("lane"))) == lane_role
+    ]
+
+
 def map_match_draft(
     raw: dict[str, Any],
     *,

@@ -202,7 +202,7 @@ async def test_tool_boundary_retry_after_recovery_exhaustion_and_rejection() -> 
     payload = await call(upstream, {"match_ids": [1]})
     await upstream.aclose()
     assert payload["matches"][0]["draft"]["match_id"] == 1
-    assert attempts == 2 and delays == [0]
+    assert attempts == 2 and delays == [2]
 
     for status, expected in [(503, "upstream_unavailable"), (403, "upstream_rejected")]:
 
