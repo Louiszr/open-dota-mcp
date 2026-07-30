@@ -40,8 +40,9 @@ valid cache hits or continuations; coordinate equivalent cache misses into one r
 
 **Constraints**: Six total attempts; fallback bases 2/4/8/16/32 seconds with additive 0-20%
 jitter; 40-second individual-delay, 75-second cumulative-delay, and 90-second elapsed defaults;
-lookback 1-100 (default 25); page size 1-25 (default 10); regex at most 64 characters and timeout
-bounded; Tier 1 is `premium`; protocol-only stdout; offline deterministic tests
+lookback 1-100 (default 25); page size 1-25 (default 10); regex at most 64 characters with a
+50-millisecond timeout for each full-string evaluation; Tier 1 is `premium`; protocol-only stdout;
+offline deterministic tests
 
 **Scale/Scope**: Existing nine OpenDota GET operations and three tools, plus one report tool; one
 resolved team, at most 100 match-detail records, five optional groups, and at most 32 concurrent
@@ -148,7 +149,9 @@ separates rich internal normalization from the lean MCP response.
 ### Report selection pipeline
 
 1. Validate team ID, lookback, tier list, scenario enums, include groups, page size, and version
-   expression before match-detail retrieval. Continuations use the saved normalized fingerprint.
+   expression before match-detail retrieval. Apply a 50-millisecond timeout to every full-string
+   version-expression evaluation and map malformed or timed-out expressions to the same concise
+   `invalid_version_expression` error. Continuations use the saved normalized fingerprint.
 2. Resolve the team and cached patch/league/hero/player references. Without a caller expression,
    select the latest valid patch by release date and retain only its label for the public filter.
 3. Fetch team matches, normalize completed records, deduplicate, sort newest first, and take the
@@ -156,7 +159,8 @@ separates rich internal normalization from the lean MCP response.
 4. Fetch detail records with concurrency 5. Internal records may retain source information needed
    to resolve conflicts, but public models never serialize it.
 5. Determine team placement, parse status, patch label, tier, side/result, and ban order; apply all
-   filters with AND semantics. Keep detailed evaluation state internal.
+   filters with AND semantics. Count a missing, malformed, or failed detail as unparsed so parsed
+   plus unparsed always equals examined. Keep detailed evaluation state internal.
 6. Compute only examined/parsed/unparsed public coverage. Materialize eligible
    matches and requested groups, snapshot them, then paginate. Empty eligibility is successful.
 
@@ -166,9 +170,9 @@ separates rich internal normalization from the lean MCP response.
   only examined, parsed, and unparsed counts.
 - Core match: match ID, start time, duration, tournament name/tier, patch label, analyzed-team name,
   opponent ID/name, side, result, and nullable ban order.
-- Explicitly exclude team tags; league, patch, hero, action-source, and account IDs; catalog/source
-  metadata; request echoes; per-stage/filter results; warning/reason arrays; and generic quality,
-  availability, completeness, analysis, or parse statuses.
+- Explicitly exclude team tags; league, patch, hero, action-source, and player account IDs;
+  catalog/source metadata; request echoes; per-stage/filter results; warning/reason arrays; and
+  generic quality, availability, completeness, analysis, or parse statuses.
 - Unparsed, filtered, malformed, and failed-detail matches contribute to aggregate coverage but do
   not become public outcome records.
 
