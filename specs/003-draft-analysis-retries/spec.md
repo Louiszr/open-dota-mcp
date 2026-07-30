@@ -51,10 +51,10 @@ An analysis agent supplies a stable professional team ID and a recent-match look
 1. **Given** the latest dated entry in OpenDota's patch catalog is `7.41`, **When** neither a version pattern nor tournament-tier filter is supplied, **Then** the newest 25 completed matches consume the lookback quota and only Tier 1 matches labeled exactly `7.41` are eligible for detailed analysis.
 2. **Given** the version pattern `7[.]4[01]`, **When** the report is requested, **Then** completed matches labeled `7.40` or `7.41` within the lookback are eligible regardless of the latest catalog patch.
 3. **Given** an explicit non-empty list of supported tournament tiers, **When** the report is requested, **Then** only matches in those tiers are eligible and the response shows the raw upstream tier for each match.
-4. **Given** the 25-match lookback contains 20 parsed and 5 unparsed matches, **When** the report is returned, **Then** all 25 consume the quota, the response reports a 20/25 parse coverage rate, and each unparsed match is identified explicitly rather than disappearing from the report.
-5. **Given** no other optional filters, **When** a report is requested, **Then** each returned game identifies the team and opponent, tournament and tier, patch, date, side, team-relative win/loss, first- or second-ban order when known, duration, parse status, analysis status, and data-completeness state.
+4. **Given** the 25-match lookback contains 20 parsed and 5 unparsed matches, **When** the report is returned, **Then** all 25 consume the quota and the response reports parsed and unparsed counts without expanding every unparsed match into a diagnostic record.
+5. **Given** no other optional filters, **When** a report is requested, **Then** each returned eligible game identifies the match, tournament, patch label, date, analyzed team, opponent, side, team-relative win/loss, first- or second-ban order when known, and duration.
 6. **Given** an unknown team ID, invalid version expression, invalid or contradictory tier list, or lookback outside the documented bounds, **When** the tool is called, **Then** the request is rejected with correction guidance; a tier error enumerates `premium`, `professional`, `amateur`, and `all`, and team-name resolution is deferred to the existing lookup capability.
-7. **Given** a valid request with no eligible games, **When** selection completes, **Then** the report returns an empty analyzed-game collection with the resolved team, applied filters, examined-match count, parsed/unparsed coverage, and exclusion counts rather than an error.
+7. **Given** a valid request with no eligible games, **When** selection completes, **Then** the report returns an empty match collection with the resolved team, applied filters, examined-match count, and parsed/unparsed coverage rather than an error.
 
 ---
 
@@ -70,48 +70,47 @@ An analysis agent can narrow the report by the team's side, match outcome, and w
 
 1. **Given** side `radiant`, result `loss`, and first ban `yes`, **When** the report is requested, **Then** every returned game satisfies all three conditions from the analyzed team's perspective.
 2. **Given** no value for one or more filters, **When** the report is requested, **Then** the omitted dimensions do not exclude games.
-3. **Given** degraded or missing pick/ban chronology, **When** a first-ban filter is active, **Then** the game is excluded as unknown and counted separately rather than guessed.
-4. **Given** the selected team appears on neither or both match sides, **When** the record is evaluated, **Then** it is excluded with a data-quality reason.
+3. **Given** degraded or missing pick/ban chronology, **When** a first-ban filter is active, **Then** the game is excluded rather than guessed.
+4. **Given** the selected team appears on neither or both match sides, **When** the record is evaluated, **Then** it is excluded without exposing internal evaluation diagnostics.
 
 ---
 
 ### User Story 4 - Compare Draft and Game-State Evidence (Priority: P4)
 
-An analysis agent can opt into cohesive detail groups to compare both teams' lanes, economy, structures, objectives, hero picks/bans, draft rounds, player assignments, matchup knowledge, and hero economy snapshots at the requested checkpoints.
+An analysis agent can opt into cohesive detail groups to compare both teams' lanes, economy, structures, objectives, hero picks/bans, player assignments, matchup knowledge, and hero economy snapshots at the requested checkpoints.
 
 **Why this priority**: Detailed evidence explains how draft choices translated into lanes and mid-game state, while opt-in groups keep the default response usable in a limited agent context.
 
-**Independent Test**: Use one fully parsed match fixture with known players, draft actions, lane assignments, time series, structure events, Roshan events, and Tormentor events; request every field group separately and together, then verify team-relative symmetry and missing-data warnings.
+**Independent Test**: Use one fully parsed match fixture with known players, draft actions, lane assignments, time series, structure events, Roshan events, and Tormentor events; request every field group separately and together, then verify team-relative symmetry and sparse handling of missing data.
 
 **Acceptance Scenarios**:
 
-1. **Given** complete per-player time series, **When** lane and economy detail is requested, **Then** both teams receive safelane, midlane, and offlane evidence at 10 minutes, team gold differences at 10 and 20 minutes, and per-hero net-worth snapshots at 10 and 20 minutes.
-2. **Given** complete structure events, **When** structure detail is requested, **Then** both teams' cumulative losses at 10 and 20 minutes include lane-specific tier 1, tier 2, tier 3, melee-barracks, and ranged-barracks counts, plus non-lane tier 4 counts and totals.
-3. **Given** attributable Roshan and Tormentor events, **When** objective detail is requested, **Then** both teams' counts and event times through 25 minutes are returned.
-4. **Given** an authoritative draft and final lane assignments, **When** draft detail is requested, **Then** every pick and ban includes its action order and semantic phase/round where determinable, every pick includes its player, and every picked hero states which opposing lane heroes were already known at pick time.
-5. **Given** missing or ambiguous parsed evidence, **When** any detail group is requested, **Then** the affected value is explicitly `unknown` or unavailable with a reason and is not replaced by a fabricated zero or inferred identity.
+1. **Given** complete parsed time series, **When** lane and economy detail is requested, **Then** the report returns safelane, midlane, and offlane participants with experience and last-hit differences at 10 minutes, analyzed-team gold differences at 10 and 20 minutes, and each hero's OpenDota total-gold value at 10 and 20 minutes.
+2. **Given** complete structure events, **When** structure detail is requested, **Then** both teams' cumulative loss-key lists at 10 and 20 minutes identify lane-specific tier 1, tier 2, tier 3, melee-barracks, ranged-barracks, and non-lane tier 4 structures without zero-filled counter trees.
+3. **Given** attributable Roshan and Tormentor events, **When** objective detail is requested, **Then** both teams' event-time lists through 25 minutes are returned and allow counts and first-take times to be derived.
+4. **Given** an authoritative draft and final lane assignments, **When** draft detail is requested, **Then** every pick and ban includes its action order and per-team pick/ban round, every uniquely mapped pick includes its player, and every picked hero states which opposing lane heroes were already known at pick time.
+5. **Given** missing or ambiguous parsed evidence, **When** any detail group is requested, **Then** the affected nullable field is `null` or omitted and is not replaced by a fabricated zero or inferred identity.
 6. **Given** all detail groups are requested for the maximum lookback, **When** report pages are returned, **Then** each page contains at most the requested page size, no page exceeds 25 outcomes, an opaque cursor identifies the next page when one exists, and every group preserves the same newest-first game order and team perspective across pages.
 
 ### Edge Cases
 
 - The patch catalog is unavailable, empty, or has no entry with a valid name and release date: default patch selection fails clearly and advises supplying a version pattern; it does not infer a patch from team matches.
-- The latest catalog patch has no matching team games in the lookback: return an empty report with patch-exclusion counts; do not silently fall back to an older patch.
-- A valid version expression matches no resolved patch labels: return an empty report with patch-exclusion counts.
+- The latest catalog patch has no matching team games in the lookback: return an empty report; do not silently fall back to an older patch.
+- A valid version expression matches no resolved patch labels: return an empty report.
 - A version expression is malformed, longer than 64 characters, or cannot be evaluated within a safe bound: reject it without beginning match retrieval.
 - The requested lookback reaches fewer completed matches than requested: examine all available matches and report the actual count and parse coverage denominator.
-- A match in the lookback is unparsed: it still consumes one lookback slot and appears in coverage output with match identity, known tournament/patch/scenario metadata, parse status, analysis status, and the reason detailed evidence is unavailable.
-- An unparsed match lacks metadata needed by an active patch, tournament-tier, or first-ban filter: retain it in lookback coverage, mark the filter disposition unknown, and do not silently include it among analyzed matches.
-- A tournament has a missing or unrecognized upstream tier: retain the match in lookback coverage, report the raw value, and exclude it when a specific tier filter is active.
-- A match ends before a 10-, 20-, or 25-minute checkpoint: return unavailable for that later checkpoint; do not reuse the final value as though it were a checkpoint observation.
-- A time series lacks an exact checkpoint sample: use the latest observation at or before the checkpoint, disclose its timestamp, and mark unavailable if no prior observation exists.
-- A player cannot be assigned uniquely to a lane or picked hero: preserve the hero and stable IDs, mark the association ambiguous, and do not use it for matchup-knowledge or lane classification.
+- A match in the lookback is unparsed: it still consumes one lookback slot and contributes to the unparsed coverage count, but is not expanded into a match result or diagnostic explanation.
+- An unparsed match lacks metadata needed by an active patch, tournament-tier, or first-ban filter: retain it only in the lookback coverage count and do not silently include it among eligible matches.
+- A tournament has a missing or unrecognized upstream tier: exclude it when a specific tier filter is active without exposing internal source or evaluation details.
+- A match ends before a 10-, 20-, or 25-minute checkpoint: return `null` for that later checkpoint; do not reuse the final value as though it were a checkpoint observation.
+- A time series lacks an exact checkpoint sample: use the latest observation at or before the checkpoint and return `null` if no prior observation exists.
+- A player cannot be assigned uniquely to a lane or picked hero: preserve the hero name, omit the ambiguous player, and do not use the association for matchup knowledge.
 - A team changes name or roster within the lookback: stable team IDs remain authoritative and each match retains match-time labels and players where available.
-- Draft actions are missing, duplicated, or non-contiguous: preserve source order, mark chronology degraded, and leave semantic round and matchup knowledge unknown when they cannot be determined safely.
-- A Captains Mode action sequence differs by patch or game mode: use the applicable documented sequence only when it can be identified; otherwise expose action order without claiming a semantic phase.
-- An objective or structure event cannot be attributed to a team: report it as unattributed and mark the affected team comparison incomplete rather than assigning it by map side alone.
-- Tormentor did not exist in the selected patch: report the objective as not applicable, distinct from zero taken and unknown data.
+- Draft actions are missing, duplicated, or cannot be ordered unambiguously: preserve best-known order but omit round and matchup knowledge when they cannot be determined safely.
+- An objective or structure event cannot be attributed to a team: omit it from team totals rather than assigning it by map side alone or exposing a diagnostic event list.
+- Tormentor did not exist in the selected patch: return `null`, distinct from a verified empty event-time list.
 - Concurrent cache misses target the same upstream record: only the population owner performs retries; waiters do not multiply attempts.
-- A cached failure is stale while upstream has recovered: normal failure-cache policy governs reuse, and the report identifies per-match upstream failures without presenting partial data as complete.
+- A cached failure is stale while upstream has recovered: normal failure-cache policy governs reuse; a failed match detail contributes to coverage but does not add a verbose per-match error object.
 - A caller deadline, cancellation, or total retry budget prevents another attempt: stop promptly with a structured reason and no unbounded work.
 
 ## Requirements *(mandatory)*
@@ -143,32 +142,31 @@ An analysis agent can opt into cohesive detail groups to compare both teams' lan
 - **FR-019**: The capability MUST support independently combinable, team-relative filters for side (`radiant` or `dire`), result (`win` or `loss`), and first ban (`yes` or `no`), with omission meaning either value is allowed.
 - **FR-019a**: The capability MUST accept a non-empty tournament-tier list containing one or more distinct upstream league-tier values from `premium`, `professional`, and `amateur`, or the single value `all`. The default MUST be `[premium]`, presented to users as Tier 1. `all` MUST NOT be combined with another value, and the tool MUST NOT infer numeric labels for other upstream tiers. The public tool description and every invalid-tier error MUST enumerate all four accepted values and explain that named tiers may be combined while `all` is mutually exclusive.
 - **FR-020**: First-ban order MUST be determined from the earliest authoritative ban action in the match: the acting team is `first` and the other team is `second`. If this cannot be determined, the value MUST be `unknown` and MUST not satisfy a `yes` or `no` filter.
-- **FR-021**: Matches MUST be returned newest first and every response page MUST report the resolved team, requested and examined lookback counts, active tournament-tier, patch, and scenario filters, analyzed count, and exclusion or unknown-disposition counts by reason.
+- **FR-021**: Eligible matches MUST be returned newest first and every response page MUST report the resolved team, active filters, and only the examined, parsed, and unparsed lookback counts.
 - **FR-021a**: Every completed match, parsed or unparsed, MUST consume one slot in the lookback before filters are applied. The system MUST NOT scan farther back to replace an unparsed or filtered-out match merely to reach a target analyzed-match count.
-- **FR-021b**: The response MUST include parse coverage for the complete lookback and after each filter stage, including parsed count, unparsed count, denominator, percentage, and the IDs and known metadata of unparsed matches, so analysts can assess selection bias.
-- **FR-021c**: Each unparsed match in the lookback MUST appear as an explicit coverage or game outcome with `parse_status=unparsed`, `analysis_status=unavailable`, known core metadata, filter disposition, and unavailable-detail reasons; optional evidence MUST not be fabricated.
-- **FR-021d**: Match and coverage outcomes MUST be paginated after selection in stable newest-first order. The request MUST accept a page size from 1 through 25, defaulting to 10, and an opaque continuation cursor. Each page MUST repeat the report-level filter, selection-count, and complete-lookback parse-coverage context; MUST expose the returned-outcome count and next cursor when more outcomes remain; and MUST reject invalid, expired, or request-mismatched cursors with correction guidance. Pagination MUST NOT repeat or skip outcomes when the underlying report snapshot is unchanged.
-- **FR-022**: An invalid team ID, unknown team, invalid input, unavailable default patch, or request-wide upstream failure MUST produce a structured tool error; invalid-tier errors MUST enumerate `premium`, `professional`, `amateur`, and `all` as correction choices. Per-match missing or malformed data MUST produce a sparse per-match outcome so other matches remain usable.
+- **FR-021b**: Parse coverage MUST be limited to aggregate parsed and unparsed counts for the complete lookback. The public response MUST NOT include per-filter-stage coverage, filter evaluations, or explanations of why individual matches are unparsed or excluded.
+- **FR-021c**: Unparsed, filtered-out, malformed, and failed-detail matches MUST NOT be expanded into public match outcomes. They contribute only to the compact lookback summary; optional evidence MUST never be fabricated.
+- **FR-021d**: Eligible matches MUST be paginated after selection in stable newest-first order. The request MUST accept a page size from 1 through 25, defaulting to 10, and an opaque continuation cursor. Each page MUST repeat the resolved team, active filters, and compact lookback summary; MUST expose a next cursor only when more matches remain; and MUST reject invalid, expired, or request-mismatched cursors with correction guidance. Pagination MUST NOT repeat or skip matches when the report snapshot is unchanged.
+- **FR-022**: An invalid team ID, unknown team, invalid input, unavailable default patch, or request-wide upstream failure MUST produce a concise structured tool error; invalid-tier errors MUST enumerate `premium`, `professional`, `amateur`, and `all` as correction choices. A per-match failure MUST NOT fail otherwise usable matches or expose internal diagnostics.
 
 #### Response Shape and Comparative Evidence
 
-- **FR-023**: The default response for each game or coverage outcome MUST contain match ID, UTC start time, tournament identity and raw upstream tier, patch ID and label, analyzed team and opponent identities, analyzed-team side and result, first- or second-ban order when known, duration, parse status, analysis status, filter disposition, and completeness warnings.
+- **FR-023**: The default response for each eligible match MUST contain only match ID, UTC start time, duration, tournament name and tier, patch label, analyzed-team name, opponent name, analyzed-team side and result, and ban order when known. Team tags, league IDs, patch IDs, parse/analysis statuses, filter evaluations/dispositions, source/provenance fields, completeness objects, and diagnostic warnings MUST NOT be included.
 - **FR-024**: Rich evidence MUST be available through additive field groups named `draft`, `lanes`, `economy`, `structures`, and `objectives`; unsupported group names MUST be rejected with the valid choices, and selecting all groups MUST produce the complete requested report.
-- **FR-025**: Every comparative group MUST represent both the analyzed team and its opponent using the same fields and checkpoint definitions, while clearly retaining the analyzed-team perspective.
-- **FR-026**: The `draft` group MUST return every pick and ban in best-known chronological order with pick/ban type, acting team, hero ID/name, source action order, semantic pick/ban phase and round where determinable, and chronology quality.
-- **FR-027**: Every pick in the `draft` group MUST identify the player by professional name and stable account ID when available, using the existing identity fallback rules and never guessing an ambiguous player.
-- **FR-028**: For each picked hero, the `draft` group MUST report whether its lane matchup was known when it was picked, the opposing heroes already known, and the evidence quality. A mid hero is matchup-known when the opposing final mid hero was picked earlier; a non-mid hero is matchup-known only when both opposing final laners were picked earlier.
-- **FR-029**: Matchup-knowledge assessment MUST use final parsed lane assignments joined to authoritative draft order. It MUST be `unknown` when final lane assignment, hero-player mapping, opposing lane composition, or draft chronology is incomplete or ambiguous.
-- **FR-030**: The `lanes` group MUST report safelane, midlane, and offlane participants for both teams and, at 10 minutes, combined lane net-worth difference, experience difference, and last-hit difference from each team's perspective.
-- **FR-031**: Each lane MUST receive a transparent heuristic assessment: `advantaged` when it leads in both net worth and experience, `disadvantaged` when it trails in both, `even` when both are equal, `mixed` when the signals disagree, and `unknown` when either primary signal is unavailable. Last hits are supporting evidence and do not override the classification.
-- **FR-032**: The `economy` group MUST report team gold difference at 10 and 20 minutes from both Radiant/Dire and analyzed-team perspectives, plus every hero's team, player identity, hero identity, lane, observed net worth at 10 and 20 minutes, and actual sample timestamp.
-- **FR-033**: A per-player economy value MUST be labeled net worth only when the documented parsed-match time series supports that meaning; current gold, final net worth, or another proxy MUST NOT be silently substituted. An unsupported checkpoint MUST be unavailable with a reason.
-- **FR-034**: The `structures` group MUST report cumulative structures lost by each team at 10 and 20 minutes, broken down into top/mid/bottom tier 1, tier 2, and tier 3 towers; top/mid/bottom melee and ranged barracks; non-lane tier 4 towers; and category and overall totals.
+- **FR-025**: Comparative groups MUST use the analyzed-team perspective and compact paired fields or differences rather than duplicating equivalent positive and negative views for both teams.
+- **FR-026**: The `draft` group MUST return every pick and ban in best-known chronological order with one action order, pick/ban type, per-team round, acting-team name, and hero name. `type` is the phase. For each team independently, actions MUST be traversed by global order; consecutive actions of one type form one round for that type, and the next run of that type after the other type increments its round. Thus each team has its own ban rounds 1..N and pick rounds 1..N. Round MUST be omitted when action order is ambiguous. Hero IDs, source indexes, duplicate order fields, chronology-quality fields, and source metadata MUST NOT be returned.
+- **FR-027**: Every pick in the `draft` group SHOULD identify the player by professional name when uniquely available, using existing identity fallback rules and never guessing an ambiguous player. Player account IDs are omitted from this report.
+- **FR-028**: For each picked hero, the `draft` group MUST report whether its lane matchup was known when it was picked and the opposing hero names already known. A mid hero is matchup-known when the opposing final mid hero was picked earlier; a non-mid hero is matchup-known only when both opposing final laners were picked earlier.
+- **FR-029**: Matchup-knowledge assessment MUST use final parsed lane assignments joined to authoritative draft order. It MUST be omitted when final lane assignment, hero-player mapping, opposing lane composition, or draft chronology is incomplete or ambiguous.
+- **FR-030**: The `lanes` group MUST report safelane, midlane, and offlane hero-name lists for the analyzed team and opponent, plus analyzed-team experience and last-hit differences at 10 minutes.
+- **FR-031**: Missing lane participants or checkpoint differences MUST be represented sparsely as omitted or `null`; the response MUST NOT add availability, evidence-quality, or reason wrappers.
+- **FR-032**: The `economy` group MUST report analyzed-team gold difference and each hero's OpenDota total-gold value at 10 and 20 minutes, using hero names and optional player names. These values MUST come from `radiant_gold_adv` and `gold_t` and MUST be labeled gold rather than exact net worth.
+- **FR-034**: The `structures` group MUST report compact lists of structure keys lost by the analyzed team and opponent through 10 and 20 minutes. Keys distinguish top/mid/bottom tier 1-3 towers, melee/ranged barracks, and tier 4 towers without emitting every zero-valued counter or redundant totals.
 - **FR-035**: Structure checkpoint counts MUST come from attributable timestamped destruction evidence. Final structure-status values MAY validate completeness but MUST NOT be used to invent destruction timing.
-- **FR-036**: The `objectives` group MUST report, for each team, Roshan and Tormentor counts through 25 minutes, each attributable event time, and first-take time; it MUST distinguish zero taken, unattributed event, unavailable parsed evidence, and not applicable for the patch.
-- **FR-037**: All 10-, 20-, and 25-minute fields MUST use game-clock time, use the latest observation at or before a checkpoint when exact samples are absent, disclose the observation time, and return unavailable if the match ended or no observation exists before that checkpoint.
-- **FR-038**: Each game and each optional group MUST expose completeness and data-quality warnings sufficient to distinguish complete, partial, unknown, and not-applicable evidence; missing values MUST never be represented as zero unless zero is established by complete evidence.
-- **FR-039**: The tool description MUST document the slim default, field groups, 25-match lookback default and 100-match maximum, outcome pagination with its 10-item default, 25-item maximum, and opaque continuation cursor, unparsed-match quota and coverage behavior, Tier 1 (`premium`) default, all tournament-tier choices (`premium`, `professional`, `amateur`, and mutually exclusive `all`) and named-tier combination behavior, patch-expression semantics, team-relative filters, checkpoint rules, heuristic lane definition, possible partial data, and meaningful upstream exhaustion outcomes.
+- **FR-036**: The `objectives` group MUST report Roshan and Tormentor attributable event-time lists through 25 minutes for the analyzed team and opponent. A verified empty list means zero; `null` means unavailable or not applicable. Counts and first-take times MUST NOT duplicate information derivable from the event-time list.
+- **FR-037**: All 10-, 20-, and 25-minute fields MUST use game-clock time and the latest observation at or before a checkpoint when exact samples are absent. The public response MUST NOT expose observation timestamps or sampling diagnostics.
+- **FR-038**: Missing optional evidence MUST be represented by omission or `null`, while verified counts may be zero and verified event collections may be empty. The public response MUST NOT expose broad completeness, availability, evidence-quality, source, or warning objects.
+- **FR-039**: The tool description MUST document the slim default, field groups, 25-match lookback default and 100-match maximum, match pagination with its 10-item default, 25-item maximum, and opaque continuation cursor, aggregate parse coverage behavior, Tier 1 (`premium`) default, all tournament-tier choices (`premium`, `professional`, `amateur`, and mutually exclusive `all`) and named-tier combination behavior, patch-expression semantics, team-relative filters, checkpoint rules, possible sparse data, and bounded upstream exhaustion.
 - **FR-040**: Authentication remains optional and reuses existing OpenDota configuration; no new identity, authorization, or secret-returning behavior is introduced.
 
 ### Key Entities *(include if feature involves data)*
@@ -176,14 +174,13 @@ An analysis agent can opt into cohesive detail groups to compare both teams' lan
 - **Retry Policy**: Finite limits and decision rules for attempts, fallback bases, jitter, upstream guidance, delay budget, elapsed budget, caller deadline, cancellation, and exhaustion reason.
 - **Rate-Limit Observation**: One in-scope throttling response classified as minute or unknown, with sanitized guidance and remaining-minute metadata when available.
 - **Drafting Report Request**: Team ID, bounded lookback, optional version expression, tournament-tier and scenario filters, and selected evidence groups.
-- **Drafting Report**: Resolved team context, filter summary, selection counts, complete-lookback parse-coverage measurements, a stable paginated sequence of per-match outcomes, continuation metadata, and report-level warnings.
-- **Parse Coverage**: Counts and identities of parsed and unparsed matches in the quota window and after each filter stage, including denominators, rates, dispositions, and known metadata.
-- **Match Comparison**: One eligible game represented symmetrically for the analyzed team and opponent, with core context and selected evidence groups.
-- **Draft Action**: Ordered pick or ban with acting team, hero, semantic phase/round, player for picks, chronology quality, and matchup-knowledge evidence.
-- **Lane Assessment**: Final lane participants plus 10-minute net-worth, experience, and last-hit comparisons and the declared heuristic outcome.
-- **Checkpoint Snapshot**: A requested game-clock checkpoint, actual observation time, value, perspective, and availability quality.
-- **Structure Ledger**: Timestamped and attributable tower/barracks losses summarized by team, lane, tier/type, checkpoint, and total.
-- **Objective Ledger**: Timestamped and attributable Roshan/Tormentor events summarized through 25 minutes with zero/unknown/not-applicable distinctions.
+- **Drafting Report**: Resolved team, active filters, compact lookback coverage, eligible matches, and continuation cursor.
+- **Parse Coverage**: Aggregate examined, parsed, and unparsed counts for the quota window.
+- **Match Comparison**: One eligible game from the analyzed team's perspective, with a minimal core and selected evidence groups.
+- **Draft Action**: Ordered pick or ban with its per-team type round, acting-team name, hero name, optional player name, and compact matchup knowledge.
+- **Lane Comparison**: Final analyzed-team and opponent hero-name lists plus 10-minute experience and last-hit differences.
+- **Structure Ledger**: Compact structure keys lost by each team through 10 and 20 minutes.
+- **Objective Ledger**: Attributable Roshan/Tormentor event-time lists through 25 minutes, or `null` when unsupported.
 
 ## Success Criteria *(mandatory)*
 
@@ -193,12 +190,12 @@ An analysis agent can opt into cohesive detail groups to compare both teams' lan
 - **SC-002**: In deterministic recovery tests, the default 40-second individual-delay and 75-second accumulated-delay caps permit the complete maximum-jitter fallback sequence, 100% of operations that receive a success within all active budgets return that success, and 100% that exceed an attempt, delay, 90-second elapsed-time, caller-deadline, or cancellation boundary stop without one extra request.
 - **SC-003**: A single uncached report at the maximum lookback never examines more than 100 team matches and does not create duplicate upstream retry sequences for shared cache-population work.
 - **SC-004**: For a fixture set spanning three patch labels and tournament tiers, 100% of default analyzed matches are `premium` Tier 1 matches on the latest valid patch-catalog entry by release date, and 100% of version-pattern and tier-filter reports contain only matches satisfying both supplied filters.
-- **SC-005**: Across side, result, and first-ban acceptance fixtures, 100% of returned games satisfy every active filter from the analyzed team's perspective, with unknown values excluded and counted rather than guessed.
-- **SC-006**: For complete parsed-match fixtures, 100% of requested core and optional fields agree with source draft order, player assignments, lane time series, structure events, objective events, and team perspective at the defined checkpoints.
-- **SC-007**: For incomplete fixtures, 100% of unavailable evidence is labeled unknown, partial, or not applicable; no missing checkpoint, structure, objective, player, lane, or matchup value is reported as an established zero or fact.
-- **SC-007a**: For every fixture set, parsed count plus unparsed count equals the examined lookback count, all unparsed match IDs are present in coverage output, and the reported parse percentage equals parsed count divided by the examined count.
+- **SC-005**: Across side, result, and first-ban acceptance fixtures, 100% of returned games satisfy every active filter from the analyzed team's perspective, with unknown values excluded rather than guessed.
+- **SC-006**: For complete parsed-match fixtures, 100% of requested core and optional fields agree with source draft order, player assignments, lane time series, structure events, objective events, and analyzed-team perspective at the defined checkpoints; no response contains a team tag, league ID, patch ID, hero ID, account ID, source/provenance field, or filter evaluation.
+- **SC-007**: For incomplete fixtures, 100% of missing evidence is omitted or `null`; no missing checkpoint, structure, objective, player, lane, or matchup value is reported as an established zero or fact, and no diagnostic reason wrapper is added.
+- **SC-007a**: For every fixture set, parsed count plus unparsed count equals the examined lookback count, with no per-filter-stage coverage breakdown.
 - **SC-008**: An analysis agent can obtain the first page of a default team report in one tool call after resolving a team ID, can request all documented groups without external JSON post-processing, and can retrieve every remaining outcome by following only the returned opaque continuation cursors.
-- **SC-009**: Every response contains at most 25 match or coverage outcomes from a maximum 100-match quota window, and every page contains core report and complete-lookback parse-coverage context so users can assess bias before requesting or continuing detailed evidence.
+- **SC-009**: Every response contains at most 25 eligible matches from a maximum 100-match quota window, and every page contains the compact lookback coverage needed to assess parse bias.
 
 ## Assumptions
 
@@ -207,10 +204,7 @@ An analysis agent can opt into cohesive detail groups to compare both teams' lan
 - For tournament-tier filtering, Tier 1 means OpenDota's `premium` league tier. Other filter values retain OpenDota's raw `professional` and `amateur` labels because no unsupported Tier 2/Tier 3 mapping is inferred.
 - OpenDota's patch catalog is authoritative for default patch selection. The valid entry with the greatest release date supplies the exact default label independently of the selected team's match history and active tournament-tier or scenario filters.
 - Patch expressions are full-string regular-expression matches against labels supplied by OpenDota's patch catalog; a caller wanting patches `7.40` and `7.41` can use `7[.]4[01]`.
-- Parsed OpenDota records are expected to provide draft actions, player lane assignments, per-minute gold/experience/last-hit series, Radiant gold advantage, and timestamped objectives when parsing is complete. Planning must verify the exact upstream meaning and availability of every consumed field before implementation.
-- Net-worth terminology is contingent on verified upstream semantics. If the available per-minute value is only an approximation or a differently defined gold measure, the public report must name it accurately and mark exact net worth unavailable.
-- Lane outcome is intentionally a transparent descriptive heuristic, not a claim that net worth and experience fully determine strategic lane success.
-- Semantic draft phases vary with game mode and patch; action order remains useful even when a trustworthy phase mapping is unavailable.
+- Parsed OpenDota records are expected to provide draft actions, player lane assignments, per-minute total-gold/experience/last-hit series, Radiant gold advantage, and timestamped objectives when parsing is complete. Planning must verify the exact upstream meaning and availability of every consumed field before implementation.
 - Current official OpenDota source configures 60 unauthenticated calls per minute and 300 calls per minute with an API key using a fixed minute bucket. Its current rate-limit response path exposes remaining-minute metadata and a 429 body but does not set `Retry-After`; therefore missing guidance is an expected condition, while proxy-provided guidance may still be honored under the safety rules above.
 - Current local defaults (3 attempts, 0.25-second fallback base, 5-second cap, and 10-second delay budget) are insufficient for the requested minute-window recovery behavior and are in scope for revision.
 - Daily quota exhaustion behavior is outside the scope of this feature and remains unchanged.
