@@ -153,6 +153,44 @@ async def test_all_groups_and_contract_example_shape() -> None:
     assert all(group in match for group in groups)
     assert match["draft"]["actions"][-1]["hero"] == "Lina"
     assert match["economy"]["hero_total_gold"][0]["at_10"] == 4700
+    assert match["economy"]["experience_difference_10"] == 300
+    assert match["economy"]["experience_difference_20"] == -500
+    assert match["economy"]["hero_experience"] == [
+        {
+            "hero": "Lina",
+            "player": "MidPlayer",
+            "team": "Radiant Pro",
+            "at_10": 4000,
+            "at_20": 9000,
+        },
+        {
+            "hero": "Storm Spirit",
+            "player": "EnemyMid",
+            "team": "Dire Pro",
+            "at_10": 3700,
+            "at_20": 8500,
+        },
+    ]
+
+
+@pytest.mark.asyncio
+async def test_economy_experience_is_additive_sparse_and_omitted_by_default() -> None:
+    fake = ContractClient()
+    slim = await invoke(fake, {"team_id": 1})
+    assert "economy" not in slim["matches"][0]
+
+    fake = ContractClient()
+    fake.data["details"]["2001"]["radiant_xp_adv"] = None
+    fake.data["details"]["2001"]["players"][0]["xp_t"] = [0, 3900]
+    fake.data["details"]["2001"]["players"][1].pop("xp_t")
+    payload = await invoke(fake, {"team_id": 1, "include": ["economy"]})
+    economy = payload["matches"][0]["economy"]
+    assert economy["experience_difference_10"] is None
+    assert economy["experience_difference_20"] is None
+    assert economy["hero_experience"][0]["at_10"] == 3900
+    assert economy["hero_experience"][0]["at_20"] == 3900
+    assert economy["hero_experience"][1]["at_10"] is None
+    assert economy["hero_experience"][1]["at_20"] is None
 
 
 @pytest.mark.asyncio

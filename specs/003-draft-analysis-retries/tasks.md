@@ -134,14 +134,14 @@
 
 **Independent Test**: Against complete, partial, short-match, Radiant, and Dire fixtures, verify `radiant_xp_adv` sign handling, aligned `xp_t` hero checkpoints, preserved numeric zero, sparse missing values, no reconstruction of a missing team advantage from hero series, and unchanged omission of the unrequested `economy` group.
 
-- [ ] T037 [P] [US4] Add explicit `radiant_xp_adv` and aligned, missing, and partial player `xp_t` checkpoint data to `tests/fixtures/opendota/analysis.json`
-- [ ] T038 [P] [US4] Add deterministic mapping tests for Radiant/Dire experience-difference symmetry, 10/20-minute aligned hero experience, short matches, verified zero, missing series, and no team-difference reconstruction in `tests/unit/test_analysis_mapping.py`
-- [ ] T039 [P] [US4] Extend sparse public-model serialization tests for nullable experience differences and `hero_experience` records without provenance or diagnostic wrappers in `tests/unit/test_analysis_models.py`
-- [ ] T040 [P] [US4] Extend MCP contract tests for the economy experience example, slim-default omission, additive group selection, both-team hero records, and sparse incomplete evidence in `tests/contract/test_analysis_tool.py`
-- [ ] T041 [US4] Add typed experience-difference fields and per-hero experience checkpoint records to `EconomyEvidence` in `src/open_dota_mcp/models/analysis.py`
-- [ ] T042 [US4] Project side-aware `radiant_xp_adv` differences and aligned `xp_t` observations for both teams without inference in `src/open_dota_mcp/services/analysis.py`
-- [ ] T043 [P] [US4] Document economy team and hero experience semantics, checkpoint sources, sign handling, and sparse behavior in `README.md`
-- [ ] T044 [US4] Run and pass the focused experience mapping, model, and MCP contract suite in `tests/unit/test_analysis_mapping.py`, `tests/unit/test_analysis_models.py`, and `tests/contract/test_analysis_tool.py`
+- [X] T037 [P] [US4] Add explicit `radiant_xp_adv` and aligned, missing, and partial player `xp_t` checkpoint data to `tests/fixtures/opendota/analysis.json`
+- [X] T038 [P] [US4] Add deterministic mapping tests for Radiant/Dire experience-difference symmetry, 10/20-minute aligned hero experience, short matches, verified zero, missing series, and no team-difference reconstruction in `tests/unit/test_analysis_mapping.py`
+- [X] T039 [P] [US4] Extend sparse public-model serialization tests for nullable experience differences and `hero_experience` records without provenance or diagnostic wrappers in `tests/unit/test_analysis_models.py`
+- [X] T040 [P] [US4] Extend MCP contract tests for the economy experience example, slim-default omission, additive group selection, both-team hero records, and sparse incomplete evidence in `tests/contract/test_analysis_tool.py`
+- [X] T041 [US4] Add typed experience-difference fields and per-hero experience checkpoint records to `EconomyEvidence` in `src/open_dota_mcp/models/analysis.py`
+- [X] T042 [US4] Project side-aware `radiant_xp_adv` differences and aligned `xp_t` observations for both teams without inference in `src/open_dota_mcp/services/analysis.py`
+- [X] T043 [P] [US4] Document economy team and hero experience semantics, checkpoint sources, sign handling, and sparse behavior in `README.md`
+- [X] T044 [US4] Run and pass the focused experience mapping, model, and MCP contract suite in `tests/unit/test_analysis_mapping.py`, `tests/unit/test_analysis_models.py`, and `tests/contract/test_analysis_tool.py`
 
 **Checkpoint**: Every requested evidence group is accurate, sparse, independently selectable, and agent-context bounded.
 
@@ -159,7 +159,9 @@
 - [X] T050 Require an independent sub-agent that performed no implementation to audit public-surface and risk-based tests, run `uv run ruff check .`, `uv run ruff format --check .`, and `uv run pytest`, require remediation and re-run on any failure, and record the passing result in `specs/003-draft-analysis-retries/tasks.md`
   - Independent QA `/root/independent_qa` initially found a parse-coverage discrepancy and missing risk matrices; remediation was completed and independently re-reviewed.
   - Final QA result: required public/risk-based coverage complete; `uv run ruff check .` exit 0; `uv run ruff format --check .` exit 0 (88 files); `uv run pytest` exit 0 (202 passed, 1 skipped, 20 warnings).
-- [ ] T051 Require a new independent sub-agent that performs none of the experience implementation to audit the expanded economy tests, run `uv run ruff check .`, `uv run ruff format --check .`, and `uv run pytest`, require remediation and re-run on any failure, and record the passing result in `specs/003-draft-analysis-retries/tasks.md`
+- [X] T051 Require a new independent sub-agent that performs none of the experience implementation to audit the expanded economy tests, run `uv run ruff check .`, `uv run ruff format --check .`, and `uv run pytest`, require remediation and re-run on any failure, and record the passing result in `specs/003-draft-analysis-retries/tasks.md`
+  - Independent QA `/root/experience_qa` initially found a missing adversarial test for absent team XP advantage with complete hero XP series; remediation added the regression and was independently re-reviewed.
+  - Final QA result: expanded economy public/risk-based coverage complete; `uv run ruff check .` exit 0; `uv run ruff format --check .` exit 0 (88 files); `uv run pytest` exit 0 (205 passed, 1 skipped, 20 warnings).
 
 ---
 

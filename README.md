@@ -47,8 +47,12 @@ The report's slim default contains resolved team/filter context, aggregate `exam
 `unparsed` coverage, and compact match outcomes including opponent IDs. Add any distinct subset of
 `draft`, `lanes`, `economy`, `structures`, and `objectives`. Draft evidence preserves authoritative
 chronology, per-team pick/ban rounds, unique players, and known lane opponents. Lane and economy
-samples use the latest aligned observation at or before 10/20 minutes; `gold_t` is described as
-total gold, not exact net worth. Structures use attributable timestamped losses. Roshan and
+samples use the latest aligned observation at or before 10/20 minutes. Economy team differences
+come directly from `radiant_gold_adv` and `radiant_xp_adv`, inverted when the analyzed team is
+Dire; missing advantages are not reconstructed from player data. Both teams' per-hero total gold
+and experience come from aligned `gold_t` and `xp_t` series. `gold_t` is described as total gold,
+not exact net worth. Missing series/checkpoints stay `null`, while a verified numeric zero remains
+`0`. Structures use attributable timestamped losses. Roshan and
 Tormentor lists cover events through 25 minutes. A verified empty list means none; `null` means the
 checkpoint is unavailable or not applicable. Sparse evidence is never guessed.
 

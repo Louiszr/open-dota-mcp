@@ -55,6 +55,7 @@
         {"hero_id": 2, "player_slot": 128, "account_id": 201, "name": "EnemyMid", "lane_role": 2, "times": [0, 600, 1200], "xp_t": [0, 3700, 8500], "lh_t": [0, 44, 120], "gold_t": [600, 4300, 9600]}
       ],
       "radiant_gold_adv": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 400, 400, 400, 400, 400, 400, 400, 400, 400, 400, -200],
+      "radiant_xp_adv": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 300, 300, 300, 300, 300, 300, 300, 300, 300, 300, -500],
       "objectives": [
         {"type": "building_kill", "time": 550, "key": "npc_dota_goodguys_tower1_top"},
         {"type": "building_kill", "time": 1100, "key": "npc_dota_badguys_tower1_mid"},
@@ -77,7 +78,10 @@
       "dire_name": "Radiant Pro",
       "radiant_win": true,
       "picks_bans": [{"is_pick": false, "hero_id": 3, "team": 0, "order": 0}],
-      "players": [],
+      "players": [
+        {"hero_id": 3, "player_slot": 0, "lane_role": 1, "times": [0, 600, 1200], "xp_t": [0, 0]},
+        {"hero_id": 4, "player_slot": 128, "lane_role": 3, "times": [0, 600, 1200]}
+      ],
       "objectives": []
     },
     "2004": {"unexpected": "malformed"}

@@ -150,12 +150,25 @@ class HeroTotalGold(SparseModel):
     at_20: int | None = None
 
 
+class HeroExperience(SparseModel):
+    """Per-hero experience observations."""
+
+    hero: str
+    player: str | None = Field(default=None, exclude_if=omit_none)
+    team: str
+    at_10: int | None = None
+    at_20: int | None = None
+
+
 class EconomyEvidence(SparseModel):
-    """Team-relative and per-hero supported gold facts."""
+    """Team-relative and per-hero supported economy facts."""
 
     gold_difference_10: int | None = None
     gold_difference_20: int | None = None
+    experience_difference_10: int | None = None
+    experience_difference_20: int | None = None
     hero_total_gold: list[HeroTotalGold]
+    hero_experience: list[HeroExperience]
 
 
 class StructureCheckpoints(SparseModel):

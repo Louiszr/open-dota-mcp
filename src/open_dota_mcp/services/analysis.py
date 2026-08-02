@@ -23,6 +23,7 @@ from open_dota_mcp.models.analysis import (
     DraftMatchup,
     EconomyEvidence,
     FirstBanFilter,
+    HeroExperience,
     HeroTotalGold,
     LaneComparison,
     LaneEvidence,
@@ -539,10 +540,12 @@ def _economy_evidence(
     professionals: dict[int, str],
 ) -> EconomyEvidence:
     duration = _integer(raw.get("duration")) or 0
-    advantage = raw.get("radiant_gold_adv")
+    gold_advantage = raw.get("radiant_gold_adv")
+    experience_advantage = raw.get("radiant_xp_adv")
     sign = 1 if side == Side.RADIANT else -1
     players = [value for value in raw.get("players", []) if isinstance(value, dict)]
     observations: list[HeroTotalGold] = []
+    experience_observations: list[HeroExperience] = []
     for player in players:
         hero_id = _integer(player.get("hero_id"))
         player_side = _player_side(player)
@@ -557,10 +560,30 @@ def _economy_evidence(
                 at_20=_sample_player(player, "gold_t", 1200) if duration >= 1200 else None,
             )
         )
+        experience_observations.append(
+            HeroExperience(
+                hero=heroes[hero_id],
+                player=_player_name(player, professionals),
+                team=analyzed_name if player_side == side else opponent_name,
+                at_10=_sample_player(player, "xp_t", 600) if duration >= 600 else None,
+                at_20=_sample_player(player, "xp_t", 1200) if duration >= 1200 else None,
+            )
+        )
     return EconomyEvidence(
-        gold_difference_10=_signed_minute_sample(advantage, 10, sign) if duration >= 600 else None,
-        gold_difference_20=_signed_minute_sample(advantage, 20, sign) if duration >= 1200 else None,
+        gold_difference_10=(
+            _signed_minute_sample(gold_advantage, 10, sign) if duration >= 600 else None
+        ),
+        gold_difference_20=(
+            _signed_minute_sample(gold_advantage, 20, sign) if duration >= 1200 else None
+        ),
+        experience_difference_10=(
+            _signed_minute_sample(experience_advantage, 10, sign) if duration >= 600 else None
+        ),
+        experience_difference_20=(
+            _signed_minute_sample(experience_advantage, 20, sign) if duration >= 1200 else None
+        ),
         hero_total_gold=observations,
+        hero_experience=experience_observations,
     )
 
 

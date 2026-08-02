@@ -12,6 +12,7 @@ from open_dota_mcp.models.analysis import (
     DraftEvidence,
     DraftingReport,
     EconomyEvidence,
+    HeroExperience,
     LaneEvidence,
     LookbackCoverage,
     MatchComparison,
@@ -107,7 +108,14 @@ def test_all_evidence_groups_are_independently_additive_and_preserve_null_empty_
     match.draft = DraftEvidence(actions=[])
     match.lanes = LaneEvidence(lanes=[])
     match.economy = EconomyEvidence(
-        gold_difference_10=None, gold_difference_20=0, hero_total_gold=[]
+        gold_difference_10=None,
+        gold_difference_20=0,
+        experience_difference_10=None,
+        experience_difference_20=0,
+        hero_total_gold=[],
+        hero_experience=[
+            HeroExperience(hero="Lina", player="MidPlayer", team="Radiant Pro", at_10=0, at_20=None)
+        ],
     )
     match.structures = StructureEvidence(
         analyzed_team_lost=StructureCheckpoints(by_10=[], by_20=None),
@@ -120,6 +128,20 @@ def test_all_evidence_groups_are_independently_additive_and_preserve_null_empty_
     payload = match.model_dump(mode="json")
     assert payload["economy"]["gold_difference_10"] is None
     assert payload["economy"]["gold_difference_20"] == 0
+    assert payload["economy"]["experience_difference_10"] is None
+    assert payload["economy"]["experience_difference_20"] == 0
+    assert payload["economy"]["hero_experience"] == [
+        {
+            "hero": "Lina",
+            "player": "MidPlayer",
+            "team": "Radiant Pro",
+            "at_10": 0,
+            "at_20": None,
+        }
+    ]
+    assert {"source", "provenance", "quality", "reason"}.isdisjoint(
+        payload["economy"]["hero_experience"][0]
+    )
     assert payload["structures"]["analyzed_team_lost"] == {"by_10": [], "by_20": None}
     assert payload["objectives"]["analyzed_team"]["tormentor_by_25"] is None
 

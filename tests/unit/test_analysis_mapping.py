@@ -253,6 +253,15 @@ def test_evidence_mapping_uses_team_perspective_rounds_checkpoints_and_attributi
     assert lane.experience_difference_10 == 300 and lane.last_hit_difference_10 == 6
     assert match.economy.gold_difference_10 == 400  # type: ignore[union-attr]
     assert match.economy.gold_difference_20 == -200  # type: ignore[union-attr]
+    assert match.economy.experience_difference_10 == 300  # type: ignore[union-attr]
+    assert match.economy.experience_difference_20 == -500  # type: ignore[union-attr]
+    assert [
+        (item.hero, item.team, item.at_10, item.at_20)
+        for item in match.economy.hero_experience  # type: ignore[union-attr]
+    ] == [
+        ("Lina", "Radiant Pro", 4000, 9000),
+        ("Storm Spirit", "Dire Pro", 3700, 8500),
+    ]
     assert match.structures.analyzed_team_lost.by_10 == ["top_t1"]  # type: ignore[union-attr]
     assert match.objectives.analyzed_team.roshan_by_25 == [900]  # type: ignore[union-attr]
     assert match.objectives.opponent.tormentor_by_25 == [1250]  # type: ignore[union-attr]
@@ -275,6 +284,8 @@ def test_evidence_is_symmetric_for_the_opposing_team_perspective() -> None:
     assert match.lanes.lanes[0].experience_difference_10 == -300  # type: ignore[union-attr]
     assert match.economy.gold_difference_10 == -400  # type: ignore[union-attr]
     assert match.economy.gold_difference_20 == 200  # type: ignore[union-attr]
+    assert match.economy.experience_difference_10 == -300  # type: ignore[union-attr]
+    assert match.economy.experience_difference_20 == 500  # type: ignore[union-attr]
     assert match.structures.analyzed_team_lost.by_20 == ["mid_t1"]  # type: ignore[union-attr]
     assert match.structures.opponent_lost.by_10 == ["top_t1"]  # type: ignore[union-attr]
     assert match.objectives.analyzed_team.tormentor_by_25 == [1250]  # type: ignore[union-attr]
@@ -302,10 +313,61 @@ def test_short_matches_and_unattributed_events_preserve_null_and_empty_semantics
     assert match is not None
     assert match.lanes.lanes[0].experience_difference_10 is None  # type: ignore[union-attr]
     assert match.economy.gold_difference_10 is None  # type: ignore[union-attr]
+    assert match.economy.experience_difference_10 is None  # type: ignore[union-attr]
     assert match.economy.hero_total_gold[0].at_10 is None  # type: ignore[union-attr]
+    assert match.economy.hero_experience[0].at_10 is None  # type: ignore[union-attr]
     assert match.structures.analyzed_team_lost.by_10 is None  # type: ignore[union-attr]
     assert match.objectives.analyzed_team.roshan_by_25 == []  # type: ignore[union-attr]
     assert match.objectives.opponent.roshan_by_25 == []  # type: ignore[union-attr]
+
+
+def test_economy_experience_preserves_zero_partial_and_missing_without_reconstruction() -> None:
+    raw = deepcopy(FIXTURE["details"]["2001"])
+    raw["radiant_xp_adv"][10] = 0
+    raw["radiant_xp_adv"][20] = None
+    raw["players"][0]["xp_t"] = [0, 3900, 4000]
+    raw["players"][1].pop("xp_t")
+    match = map_match_comparison(
+        raw,
+        summary=FIXTURE["team_matches"][1],
+        team_id=1,
+        patch_names={61: "7.41"},
+        patch_dates={61: 1782864000},
+        league_refs={10: ("Premier Cup", "premium")},
+        hero_names={value["id"]: value["localized_name"] for value in FIXTURE["heroes"]},
+        professional_names={},
+        include={"economy"},
+    )
+    assert match is not None and match.economy is not None
+    assert match.economy.experience_difference_10 == 0
+    assert match.economy.experience_difference_20 is None
+    assert match.economy.hero_experience[0].at_10 == 4000
+    assert match.economy.hero_experience[0].at_20 == 4000
+    assert match.economy.hero_experience[1].at_10 is None
+    assert match.economy.hero_experience[1].at_20 is None
+
+
+def test_economy_does_not_reconstruct_missing_team_experience_from_complete_heroes() -> None:
+    raw = deepcopy(FIXTURE["details"]["2001"])
+    raw.pop("radiant_xp_adv")
+    match = map_match_comparison(
+        raw,
+        summary=FIXTURE["team_matches"][1],
+        team_id=1,
+        patch_names={61: "7.41"},
+        patch_dates={61: 1782864000},
+        league_refs={10: ("Premier Cup", "premium")},
+        hero_names={value["id"]: value["localized_name"] for value in FIXTURE["heroes"]},
+        professional_names={},
+        include={"economy"},
+    )
+    assert match is not None and match.economy is not None
+    assert match.economy.experience_difference_10 is None
+    assert match.economy.experience_difference_20 is None
+    assert [(item.at_10, item.at_20) for item in match.economy.hero_experience] == [
+        (4000, 9000),
+        (3700, 8500),
+    ]
 
 
 def test_ambiguous_chronology_and_player_mapping_are_omitted_not_guessed() -> None:
