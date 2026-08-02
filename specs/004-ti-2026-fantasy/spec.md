@@ -25,6 +25,7 @@ An analysis agent identifies a professional player and requests that player's ne
 3. **Given** consecutive maps with the same known series identity, **When** they are returned, **Then** they expose the same series ID; maps without reliable series metadata remain in the result with a null series ID.
 4. **Given** a map with unavailable optional statistics, **When** it is returned, **Then** unavailable values are null rather than zero or inferred, while usable maps remain in the response.
 5. **Given** Madstone collection is unavailable from the supported match source, **When** any result is returned, **Then** every map retains `madstones_collected` as null and the response warns once that this statistic is unavailable.
+6. **Given** the resolved professional player's history contains public matchmaking games, including games that satisfy every requested patch/date/tier-independent condition, **When** the capability collects evidence with any supported tournament-tier selection including `all`, **Then** every public game is excluded before the result limit is applied and no request option can include it.
 
 ---
 
@@ -59,6 +60,31 @@ An analysis agent combines recent-map evidence with the scoring reference to com
 2. **Given** a mixture of known-series and unknown-series maps, **When** the agent analyzes consistency, **Then** all maps remain available and unknown-series maps are clearly distinguishable from confirmed groups.
 3. **Given** match-bound modifier information is available from a verified source, **When** a map is returned, **Then** that information is included with its value and provenance; otherwise modifier fields are null or omitted according to the documented response group and are never inferred from performance.
 
+### User Story 4 - Resolve a Team's Latest Observed Lineup (Priority: P1)
+
+An analysis agent starts with a professional team and requests a compact latest-observed lineup. It
+receives the five stable player account IDs from the team's newest usable parsed professional map,
+plus match-derived positions where lane and early-farm evidence supports a deterministic inference,
+so it can call the player-fantasy capability without separately resolving every player name.
+
+**Why this priority**: The fantasy capability requires player IDs, while the common workflow begins
+with a team. A focused bridge prevents name ambiguity and avoids making the agent inspect a large
+draft-analysis response merely to recover five IDs.
+
+**Independent Test**: Supply team histories whose newest records include unparsed, malformed, and
+usable parsed maps; verify that no more than five records are inspected, the newest usable
+five-player lineup is selected, its account-ID set exactly matches the current-member set from the
+team-player endpoint, clean 2-1-2 lane evidence maps to positions 1-5, and any membership mismatch
+returns a cannot-infer outcome.
+
+**Acceptance Scenarios**:
+
+1. **Given** a stable professional team ID whose newest completed map is parsed and contains five distinct account IDs, **When** an agent requests the lineup, **Then** the response returns those five IDs and the source match ID in one bounded call.
+2. **Given** a clean 2-1-2 lane assignment with distinct ten-minute last-hit values within each side lane, **When** positions are inferred, **Then** safelane players map to positions 1 and 5, the unique mid player maps to position 2, and offlane players map to positions 3 and 4.
+3. **Given** missing lane roles, missing or tied ten-minute last hits, roaming/trilane evidence, or fewer/more than five distinct team players, **When** the lineup is evaluated, **Then** no unsupported position is invented and the response returns nullable positions or a focused unusable-lineup outcome.
+4. **Given** the newest completed team match is unparsed, **When** a bounded later record is usable, **Then** that newest usable parsed match supplies the lineup and coverage reports how many records were examined.
+5. **Given** the selected match contains a stand-in or reflects a roster that differs from the team endpoint's five current members, **When** the membership sets are compared, **Then** the capability returns `lineup_mismatch` without inferring positions or searching older matches.
+
 ### Edge Cases
 
 - A player name is blank, reused, changed, or matches multiple professionals: reject blank input; prefer a stable account ID; return bounded candidates for ambiguous names without silently selecting one.
@@ -67,11 +93,16 @@ An analysis agent combines recent-map evidence with the scoring reference to com
 - A match is unparsed or lacks a player row, patch, tournament tier, opponent, hero, score, or series metadata: do not invent data; exclude a match only when an active filter cannot be evaluated, otherwise retain it with null fields and focused warnings.
 - A series ID is absent, inconsistent, or reused across unrelated competitions: preserve a trustworthy upstream value only; null is preferable to inferred grouping.
 - A match is abandoned, incomplete, or has no determinable winner: exclude it from completed-map results and do not consume the returned-result limit.
+- A professional player's history contains a complete parsed public match, or a match lacks affirmative professional-league provenance: exclude it regardless of all other filters; player identity, parse completeness, team IDs, or `tournament_tiers=[all]` MUST NOT make it eligible.
 - The player's team has zero kills: return a null teamfight-participation ratio and raw score with a warning rather than dividing by zero.
 - A count is legitimately zero: preserve zero and do not treat it as unavailable.
 - First Blood attribution is missing: return null; return false only when the data establishes that another player received First Blood.
 - A stat label has narrower scoring semantics than a similarly named upstream value, such as observer wards rather than all wards: use only evidence matching the scoring definition and mark the value unavailable if it cannot be distinguished.
 - The upstream service throttles, times out, returns malformed data, or partially fails: use bounded safe recovery, retain otherwise usable maps, and surface actionable exhaustion or record-level warnings.
+- A team's latest completed match is unparsed or lacks exactly five distinct positive account IDs: continue through at most four older completed matches; if none is usable, return an actionable lineup-unavailable outcome.
+- A parsed lineup has duplicate account IDs, unexpected player slots, missing lane roles, a non-2-1-2 lane distribution, missing ten-minute last-hit samples, or tied farm evidence: preserve trustworthy player IDs but leave affected positions null rather than guessing.
+- A player's current catalog team or `fantasy_role` conflicts with the selected match: the selected match establishes observed participation; catalog role data does not override match-derived position evidence.
+- The team-player endpoint does not identify exactly five distinct `is_current_team_member=true` account IDs, or those IDs differ from the newest usable parsed lineup: return a cannot-infer outcome; do not search an older match to hide a stand-in or roster change.
 
 ## Requirements *(mandatory)*
 
@@ -104,6 +135,16 @@ An analysis agent combines recent-map evidence with the scoring reference to com
 - **FR-025**: Safe upstream reads MUST absorb eligible intermittent throttling, timeouts, connection failures, and server failures using finite retry behavior that respects upstream retry instructions, caller cancellation, and caller deadlines. Exhaustion MUST return an actionable error without leaking secrets.
 - **FR-026**: Public access without an API key MUST remain supported where the match source permits it. Any optional configured key MUST remain secret; OAuth and write operations are out of scope.
 - **FR-027**: The player-fantasy capability and scoring reference MUST have deterministic offline-capable coverage for complete data, legitimate zeroes, nulls, Madstone warnings, formulas, player disambiguation, filters, bounds, series grouping/non-grouping, invalid inputs, partial failures, retry recovery/exhaustion, and client discovery/readability.
+- **FR-028**: The server MUST expose one focused read-only latest-lineup capability that accepts exactly one positive stable professional-team ID or normalized team name/tag selector and returns player IDs suitable for direct use with the player-fantasy capability.
+- **FR-029**: Team-name resolution MUST reuse the existing bounded team-candidate behavior. A unique normalized exact name/tag match may auto-resolve; ambiguity MUST return at most 10 concise team candidates and require a stable ID.
+- **FR-030**: The lineup capability MUST inspect at most the five newest completed team-history records, newest first, and select the first usable parsed match that contains exactly five distinct positive account IDs on the requested team's verified side. It MUST move to an older record only when a newer record is unparsed or otherwise inconclusive. This fixed finite search returns at most five players, so public pagination and a caller lookback control are not required.
+- **FR-031**: Every successful lineup MUST include the resolved team, source match ID and UTC start time, examined/parsed coverage, exactly five compact player records, and sparse warnings. Each player record MUST include stable account ID, professional name or null, inferred position `1` through `5` or null, lane role or null, ten-minute last hits or null, and an inference status.
+- **FR-032**: Position inference MUST use only the selected parsed match. For a clean 2-1-2 distribution, the unique midlane player is position 2; within safelane the higher distinct ten-minute last-hit value is position 1 and the lower is position 5; within offlane the higher value is position 3 and the lower is position 4. Missing, tied, malformed, roaming, or non-2-1-2 evidence MUST yield null for every unsupported position.
+- **FR-033**: Before returning players or positions, the capability MUST load `/teams/{team_id}/players`, require exactly five distinct positive account IDs whose `is_current_team_member` value is explicitly true, and require that set to equal the five-player set from the selected parsed match. A mismatch indicates a possible stand-in or roster change and MUST return `lineup_mismatch` without inferred players or further match scanning.
+- **FR-034**: The response MUST identify positions as match-derived inference and MUST NOT claim that the selected lineup or positions are an authoritative current roster. OpenDota catalog `fantasy_role`, player-slot order, final-match farm, names, and historical frequency MUST NOT substitute for the inference in FR-032.
+- **FR-035**: A valid team with no usable parsed lineup in the fixed lookback MUST return a concise `lineup_unavailable` error with examined/parsed coverage and correction guidance. An unavailable or non-five-player current-member set MUST return `current_roster_unavailable`. Invalid selectors, not-found teams, ambiguity, retry exhaustion, cancellation, and malformed upstream data MUST follow existing structured-error and safe-retry behavior.
+- **FR-036**: The latest-lineup capability MUST have deterministic offline-capable coverage for ID/name resolution, newest-usable selection, five-record scan exhaustion, team-side verification, exact five-player validation, current-member equality, stand-in/roster-change mismatch, clean inference, every nullable ambiguity path, upstream partial failure/retry exhaustion, and MCP discovery/readability.
+- **FR-037**: Professional-match eligibility MUST be a mandatory, non-configurable invariant for the player-fantasy capability. Every returned map MUST have affirmative professional-league provenance established from the hydrated match and authoritative league evidence; a professional player's participation alone is insufficient. Public matchmaking records and records with missing, zero, unknown, contradictory, or otherwise unverified league provenance MUST be excluded before patch/date/tier filtering and before `match_count` is applied. No input, including `tournament_tiers=[all]`, MAY disable or broaden this check, and the tool MUST expose no public/pub-match selector.
 
 ### Scope Boundaries
 
@@ -114,13 +155,15 @@ An analysis agent combines recent-map evidence with the scoring reference to com
 - Compact match, opponent, hero, score, result, duration, and nullable series context.
 - Raw and optionally calculated pre-modifier TI 2026 emblem scores.
 - A versioned MCP reference for base scoring, quality tiers, traits, titles, evidence status, and series/stage aggregation.
+- Focused retrieval of a professional team's five-player latest observed lineup and conservative match-derived position inference.
 
 **Out of scope**:
 
 - Managing a user's fantasy roster, inventory, rerolls, purchases, or Steam account.
 - Automatically choosing the final lineup or promising an optimal/competitive result.
 - Fabricating Madstone values, series groupings, trait/title effects, roles, or missing replay statistics.
-- Live/in-progress matches, public matchmaking, amateur-only analysis by default, replay parse requests, or arbitrary raw-match exploration.
+- Claiming that a latest observed lineup is an authoritative current roster, or inferring positions from catalog labels, player-slot order, or final-match farm.
+- Live/in-progress matches, public matchmaking under any input combination, amateur-only analysis by default, replay parse requests, or arbitrary raw-match exploration.
 - Persisting user loadouts, hosting a multi-user service, OAuth, or any write operation.
 
 ### Key Entities
@@ -134,6 +177,8 @@ An analysis agent combines recent-map evidence with the scoring reference to com
 - **Emblem Quality Tier**: One of five base multipliers applied to an emblem's raw points.
 - **Trait**: A named fantasy modifier with scope, prerequisites, effect, stacking/order behavior, and evidence status.
 - **Title**: A named fantasy modifier or eligibility rule with scope, effect, and evidence status.
+- **Latest Observed Lineup**: Exactly five stable player IDs observed for one verified team in its newest usable parsed match, with source and coverage metadata.
+- **Position Inference Evidence**: Nullable lane role, ten-minute last hits, inferred position, and inference status derived only from the selected parsed match.
 
 ## Success Criteria *(mandatory)*
 
@@ -147,12 +192,18 @@ An analysis agent combines recent-map evidence with the scoring reference to com
 - **SC-006**: From the scoring reference alone, a client can correctly explain and calculate 100% of documented base formulas and quality-tier multipliers, identify the stage's two-best-maps/best-series rule, and distinguish every known trait/title effect from every unknown effect.
 - **SC-007**: In usability validation, at least 90% of representative agent runs can compare two candidate player/emblem combinations using only the player capability and scoring reference, without a live rules search or clarification about field meaning.
 - **SC-008**: 100% of tested invalid requests, ambiguous players, incomplete records, and exhausted upstream failures produce actionable bounded outcomes without inventing data or exposing secrets.
+- **SC-009**: For fixture histories with a usable parsed lineup among the newest five completed matches whose IDs equal the five current-member IDs, 100% of responses select the newest usable match and return exactly those five account IDs with the correct source match ID.
+- **SC-010**: For all clean 2-1-2 lineup fixtures, 100% of inferred positions match the specified lane/ten-minute-farm mapping; for every ambiguous fixture, 0 unsupported positions are emitted and affected values remain null.
+- **SC-011**: An agent starting with a stable team ID can obtain five fantasy-ready player IDs in one lineup call and then request any player's fantasy evidence without name resolution or external post-processing.
+- **SC-012**: 100% of fixtures containing a stand-in, recent roster change, incomplete current-member set, or selected/current membership mismatch return a cannot-infer outcome with zero inferred positions.
+- **SC-013**: Across mixed-history fixtures containing otherwise valid public games, league-verified professional games, and games with missing or contradictory league provenance, 100% of returned maps are league-verified professional games and 0 public or unverified games are returned for every supported tier selection, including `all`.
 
 ## Assumptions
 
 - "Last X" means the newest X completed professional maps remaining after all active filters; the default is 20 and maximum is 100.
-- Filter behavior intentionally follows the existing draft-analysis capability: latest catalog patch and `premium` (Tier 1) by default, a patch-version expression when overridden, raw tier choices `premium`, `professional`, `amateur`, and mutually exclusive `all`, and inclusive UTC dates.
+- Filter behavior intentionally follows the existing draft-analysis capability: latest catalog patch and `premium` (Tier 1) by default, a patch-version expression when overridden, raw tier choices `premium`, `professional`, `amateur`, and mutually exclusive `all`, and inclusive UTC dates. These tiers narrow only maps that have already passed mandatory professional-league provenance verification; `all` means all eligible league tiers, never public matchmaking.
 - Stable player account IDs are authoritative. Professional-name lookup exists for convenience and requires disambiguation when not unique.
+- A team lineup is considered safe to return only when a newest-within-five usable parsed match and the team-player endpoint independently identify the same five account IDs; otherwise the agent receives a cannot-infer outcome.
 - The supported professional-match source provides much, but not necessarily all, parsed replay evidence. Missing values are expected and remain analytically useful when clearly represented.
 - Madstone collection is unavailable from the supported source at specification time. The field and warning preserve schema stability if a verified source becomes available later.
 - Quality tiers, traits, and titles describe a user's fantasy configuration, not an intrinsic property of a historical match. Match association occurs only when a verified match-bound source or explicit future input establishes it.
@@ -163,6 +214,6 @@ An analysis agent combines recent-map evidence with the scoring reference to com
 
 ## Dependencies
 
-- Continued availability and documented behavior of the project's supported professional player, match, league-tier, patch-catalog, hero, team, and parsed replay data sources.
+- Continued availability and documented behavior of the project's supported professional player, team-player membership, match, league-tier, patch-catalog, hero, team, and parsed replay data sources.
 - Verifiable TI 2026 fantasy-rule sources for traits, titles, quality modifiers, and stage aggregation; missing documentation must be represented as uncertainty rather than filled by assumption.
 - A network connection during live match retrieval; the scoring reference remains client-readable without a live rules search.
