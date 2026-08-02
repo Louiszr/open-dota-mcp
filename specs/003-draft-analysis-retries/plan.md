@@ -11,7 +11,7 @@ usable `Retry-After` guidance without permitting immediate retry loops. Add one 
 `analyze_pro_team_drafts` MCP tool that examines a bounded recent-match quota, applies patch,
 tournament, side, result, and first-ban filters from the selected team's perspective, and returns
 only eligible matches. The default response contains a compact team/filter/coverage envelope and a
-minimal match core. Five optional groups add supported draft, lane, gold, structure, and objective
+minimal match core. Five optional groups add supported draft, lane, economy, structure, and objective
 facts. Internal filtering, provenance, and diagnostics never inflate the public schema.
 
 ## Technical Context
@@ -75,8 +75,10 @@ resolved team, at most 100 match-detail records, five optional groups, and at mo
 
 Phase 1 preserves every gate. The contract retains team and match IDs only where follow-up tool
 calls benefit, represents heroes as names, and projects internal normalized records into a small
-stable public model. Sparse `null`/omission handles missing supported evidence without broad
-availability or warning objects. No constitution exception is required.
+stable public model. Expanding the cohesive `economy` group with team and hero experience uses the
+same two bounded checkpoints and does not affect the slim default. Sparse `null`/omission handles
+missing supported evidence without broad availability or warning objects. No constitution
+exception is required.
 
 ## Project Structure
 
@@ -184,9 +186,13 @@ separates rich internal normalization from the lean MCP response.
   equal types, and numbering pick runs and ban runs independently from 1.
 - `lanes`: lane name, analyzed-team/opponent hero-name lists, and nullable analyzed-team XP and
   last-hit differences at 10 minutes.
-- `economy`: nullable analyzed-team gold differences and per-hero total gold at 10/20 minutes from
-  `radiant_gold_adv` and `gold_t`. The public name remains gold because OpenDota parses `gold_t`
-  from total earned gold rather than its separately observed net-worth value.
+- `economy`: nullable analyzed-team gold and experience differences plus both teams' per-hero total
+  gold and experience at 10/20 minutes. Team deltas come from `radiant_gold_adv` and
+  `radiant_xp_adv`, with sign inversion for a Dire analyzed team; individual values come from
+  aligned `gold_t` and `xp_t` player series. The public gold name remains gold because OpenDota
+  parses `gold_t` from total earned gold rather than its separately observed net-worth value.
+  Missing top-level advantage series remain `null`; they are not reconstructed from incomplete
+  hero series.
 - `structures`: cumulative compact structure-key lists lost by each team through 10/20 minutes;
   `[]` is verified none and `null` is unavailable. No zero-filled counter trees or totals.
 - `objectives`: attributable Roshan/Tormentor event-time lists through 25 minutes; `[]` is verified

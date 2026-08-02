@@ -156,12 +156,14 @@ Missing comparisons are `null`.
 
 ## `economy` group
 
-Adds supported gold facts only:
+Adds supported gold and experience facts:
 
 ```json
 {
   "gold_difference_10": 1450,
   "gold_difference_20": -320,
+  "experience_difference_10": 820,
+  "experience_difference_20": -140,
   "hero_total_gold": [
     {
       "hero": "Lina",
@@ -170,13 +172,25 @@ Adds supported gold facts only:
       "at_10": 4720,
       "at_20": 10110
     }
+  ],
+  "hero_experience": [
+    {
+      "hero": "Lina",
+      "player": "MidPlayer",
+      "team": "Radiant Pro",
+      "at_10": 4000,
+      "at_20": 9000
+    }
   ]
 }
 ```
 
 The checkpoint values are from the analyzed-team perspective and latest observation at or before
-the named minute. `hero_total_gold` is sourced from OpenDota's `gold_t`; it is not labeled exact
-net worth.
+the named minute. Team differences are sourced from `radiant_gold_adv` and `radiant_xp_adv` and
+invert for a Dire analyzed team. `hero_total_gold` and `hero_experience` are sourced from aligned
+player `gold_t` and `xp_t` for both teams; gold is not labeled exact net worth. Missing series or
+checkpoints are `null` or omitted rather than inferred, and a missing team advantage is not
+reconstructed by summing partial hero series. A verified numeric zero remains `0`.
 
 ## `structures` group
 

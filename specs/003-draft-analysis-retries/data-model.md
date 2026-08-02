@@ -144,9 +144,13 @@ Each entry has `lane`, `analyzed_team_heroes`, `opponent_heroes`, and nullable a
 
 ### `EconomyEvidence`
 
-Fields: nullable `gold_difference_10` and `gold_difference_20` from the analyzed-team perspective,
-plus `hero_total_gold` records from `gold_t` when verified player series exist. A hero record has
-`hero`, optional `player`, `team`, and nullable `at_10`/`at_20` total-gold values.
+Fields: nullable `gold_difference_10`, `gold_difference_20`, `experience_difference_10`, and
+`experience_difference_20` from the analyzed-team perspective. Team differences come from
+`radiant_gold_adv` and `radiant_xp_adv` with side-aware sign handling.
+
+The evidence also contains both teams' `hero_total_gold` records from `gold_t` and
+`hero_experience` records from `xp_t` when verified aligned player series exist. Each hero record
+has `hero`, optional `player`, `team`, and nullable `at_10`/`at_20` values.
 
 Requested checkpoint and sample timestamps are not repeated in each value.
 

@@ -85,7 +85,7 @@ An analysis agent can opt into cohesive detail groups to compare both teams' lan
 
 **Acceptance Scenarios**:
 
-1. **Given** complete parsed time series, **When** lane and economy detail is requested, **Then** the report returns safelane, midlane, and offlane participants with experience and last-hit differences at 10 minutes, analyzed-team gold differences at 10 and 20 minutes, and each hero's OpenDota total-gold value at 10 and 20 minutes.
+1. **Given** complete parsed time series, **When** lane and economy detail is requested, **Then** the report returns safelane, midlane, and offlane participants with experience and last-hit differences at 10 minutes; analyzed-team gold and experience differences at 10 and 20 minutes; and each hero's OpenDota total-gold and experience values at 10 and 20 minutes.
 2. **Given** complete structure events, **When** structure detail is requested, **Then** both teams' cumulative loss-key lists at 10 and 20 minutes identify lane-specific tier 1, tier 2, tier 3, melee-barracks, ranged-barracks, and non-lane tier 4 structures without zero-filled counter trees.
 3. **Given** attributable Roshan and Tormentor events, **When** objective detail is requested, **Then** both teams' event-time lists through 25 minutes are returned and allow counts and first-take times to be derived.
 4. **Given** an authoritative draft and final lane assignments, **When** draft detail is requested, **Then** every pick and ban includes its action order and per-team pick/ban round, every uniquely mapped pick includes its player, and every picked hero states which opposing lane heroes were already known at pick time.
@@ -161,7 +161,7 @@ An analysis agent can opt into cohesive detail groups to compare both teams' lan
 - **FR-029**: Matchup-knowledge assessment MUST use final parsed lane assignments joined to authoritative draft order. It MUST be omitted when final lane assignment, hero-player mapping, opposing lane composition, or draft chronology is incomplete or ambiguous.
 - **FR-030**: The `lanes` group MUST report safelane, midlane, and offlane hero-name lists for the analyzed team and opponent, plus analyzed-team experience and last-hit differences at 10 minutes.
 - **FR-031**: Missing lane participants or checkpoint differences MUST be represented sparsely as omitted or `null`; the response MUST NOT add availability, evidence-quality, or reason wrappers.
-- **FR-032**: The `economy` group MUST report analyzed-team gold difference and each hero's OpenDota total-gold value at 10 and 20 minutes, using hero names and optional player names. These values MUST come from `radiant_gold_adv` and `gold_t` and MUST be labeled gold rather than exact net worth.
+- **FR-032**: The `economy` group MUST report analyzed-team gold and experience differences and each hero's OpenDota total-gold and experience values at 10 and 20 minutes, using hero names and optional player names. Team values MUST come from `radiant_gold_adv` and `radiant_xp_adv`; hero values MUST come from `gold_t` and `xp_t`. Gold MUST be labeled gold rather than exact net worth.
 - **FR-034**: The `structures` group MUST report compact lists of structure keys lost by the analyzed team and opponent through 10 and 20 minutes. Keys distinguish top/mid/bottom tier 1-3 towers, melee/ranged barracks, and tier 4 towers without emitting every zero-valued counter or redundant totals.
 - **FR-035**: Structure checkpoint counts MUST come from attributable timestamped destruction evidence. Final structure-status values MAY validate completeness but MUST NOT be used to invent destruction timing.
 - **FR-036**: The `objectives` group MUST report Roshan and Tormentor attributable event-time lists through 25 minutes for the analyzed team and opponent. A verified empty list means zero; `null` means unavailable or not applicable. Counts and first-take times MUST NOT duplicate information derivable from the event-time list.
@@ -180,6 +180,7 @@ An analysis agent can opt into cohesive detail groups to compare both teams' lan
 - **Match Comparison**: One eligible game from the analyzed team's perspective, with a minimal core and selected evidence groups.
 - **Draft Action**: Ordered pick or ban with its per-team type round, acting-team name, hero name, optional player name, and compact matchup knowledge.
 - **Lane Comparison**: Final analyzed-team and opponent hero-name lists plus 10-minute experience and last-hit differences.
+- **Economy Evidence**: Analyzed-team gold and experience differences plus individual hero total-gold and experience checkpoints at 10 and 20 minutes.
 - **Structure Ledger**: Compact structure keys lost by each team through 10 and 20 minutes.
 - **Objective Ledger**: Attributable Roshan/Tormentor event-time lists through 25 minutes, or `null` when unsupported.
 
@@ -205,7 +206,7 @@ An analysis agent can opt into cohesive detail groups to compare both teams' lan
 - For tournament-tier filtering, Tier 1 means OpenDota's `premium` league tier. Other filter values retain OpenDota's raw `professional` and `amateur` labels because no unsupported Tier 2/Tier 3 mapping is inferred.
 - OpenDota's patch catalog is authoritative for default patch selection. The valid entry with the greatest release date supplies the exact default label independently of the selected team's match history and active tournament-tier or scenario filters.
 - Patch expressions are full-string regular-expression matches against labels supplied by OpenDota's patch catalog; a caller wanting patches `7.40` and `7.41` can use `7[.]4[01]`.
-- Parsed OpenDota records are expected to provide draft actions, player lane assignments, per-minute total-gold/experience/last-hit series, Radiant gold advantage, and timestamped objectives when parsing is complete. Planning must verify the exact upstream meaning and availability of every consumed field before implementation.
+- Parsed OpenDota records are expected to provide draft actions, player lane assignments, per-minute total-gold/experience/last-hit series, Radiant gold and experience advantages, and timestamped objectives when parsing is complete. Planning must verify the exact upstream meaning and availability of every consumed field before implementation.
 - Current official OpenDota source configures 60 unauthenticated calls per minute and 300 calls per minute with an API key using a fixed minute bucket. Its current rate-limit response path exposes remaining-minute metadata and a 429 body but does not set `Retry-After`; therefore missing guidance is an expected condition, while proxy-provided guidance may still be honored under the safety rules above.
 - Current local defaults (3 attempts, 0.25-second fallback base, 5-second cap, and 10-second delay budget) are insufficient for the requested minute-window recovery behavior and are in scope for revision.
 - Daily quota exhaustion behavior is outside the scope of this feature and remains unchanged.

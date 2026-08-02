@@ -171,14 +171,15 @@ cadence. A patch-specific Captains Mode schedule remains unnecessary for this ru
 ## Supported lane and checkpoint observations
 
 **Decision**: Use `lane_role` 1/2/3 as safe/mid/off. For aligned player series, select the greatest
-`times[i] <= checkpoint` internally. `xp_t` and `lh_t` supply 10-minute lane differences; `gold_t`
-supplies accurately named per-hero total gold; and top-level `radiant_gold_adv` supplies team gold
-advantage with sign inversion for the analyzed-team perspective. Do not label `gold_t` as exact net
-worth.
+`times[i] <= checkpoint` internally. `xp_t` and `lh_t` supply 10-minute lane differences. For the
+economy group, `gold_t` and `xp_t` supply per-hero total gold and experience, while top-level
+`radiant_gold_adv` and `radiant_xp_adv` supply team gold and experience advantages with sign
+inversion for the analyzed-team perspective. Do not label `gold_t` as exact net worth.
 
 **Rationale**: The [official match response schema](https://api.opendota.com/api) describes
 `times` as corresponding to the other time arrays, `gold_t` as total gold over time, `xp_t` as
-experience, `lh_t` as last hits, and `radiant_gold_adv` as Radiant gold advantage at each minute.
+experience, `lh_t` as last hits, and the top-level advantage arrays as Radiant's team-relative
+gold and experience advantage at each minute.
 The [official parser](https://github.com/odota/parser/blob/master/src/main/java/opendota/Parse.java)
 reads both `m_iNetWorth` and `m_iTotalEarnedGold` but writes the latter to `gold_t`. OpenDota's
 [player graph](https://github.com/odota/web/blob/master/src/components/Visualizations/Graph/MatchGraph.tsx)
@@ -188,6 +189,8 @@ net-worth difference, but that UI copy does not override the parser/API field se
 **Alternatives considered**: Calling `gold_t` exact net worth was rejected because the parser keeps
 the source concepts separate. Returning an unavailable placeholder was rejected as schema bloat.
 Using the final value for a missing checkpoint misstates time; interpolation invents precision.
+Reconstructing a missing team XP advantage by summing available hero series was rejected because
+one missing or misaligned player series could create a plausible but incorrect team delta.
 
 ## Structures and objectives
 
@@ -237,13 +240,17 @@ timeline consistency.
 | Hero 10/20 exact net worth | only final `net_worth`; interval parser stores total earned gold in `gold_t` | Drop exact-net-worth claim |
 | Hero 10/20 total gold | aligned `times` and `gold_t` | Keep as gold |
 | Team 10/20 gold difference | `radiant_gold_adv`, equal to summed `gold_t` difference in the sample | Keep |
+| Hero 10/20 experience | aligned `times` and `xp_t` | Keep as experience |
+| Team 10/20 experience difference | `radiant_xp_adv` | Keep with analyzed-team sign |
 | Structures through 10/20 | timestamped `building_kill` objective entries with owning-side keys | Keep recognized keys |
 | Roshan through 25 | `CHAT_MESSAGE_ROSHAN_KILL` time/team | Keep |
 | Tormentor through 25 | `CHAT_MESSAGE_MINIBOSS_KILL` time/team; official UI maps it to Tormentor | Keep |
 
-**Rationale**: The live payload contained 10 aligned player `times`/`gold_t`/`xp_t`/`lh_t` series,
-24 ordered draft actions, league tier/name, timestamped building/Roshan/Tormentor events, and all
-core match identities. Summed hero `gold_t` exactly matched `radiant_gold_adv` at minutes 10 and 20.
+**Rationale**: The official match schema provides aligned player `times`/`gold_t`/`xp_t`/`lh_t`
+series and top-level `radiant_gold_adv`/`radiant_xp_adv` series. The prior live audit separately
+verified the player series alongside ordered draft actions, league metadata, timestamped objective
+events, and core match identities. Gold and experience can therefore use the same checkpoint and
+team-perspective rules without introducing inferred values.
 
 **Alternatives considered**: A single payload without source validation was insufficient. Conversely,
 requiring every objective property to be detailed in the generated OpenAPI schema would discard a

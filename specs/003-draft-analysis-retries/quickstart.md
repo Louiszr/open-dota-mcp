@@ -103,8 +103,9 @@ Expected outcomes:
 - heroes are name strings, never ID/name structs;
 - checkpoint lookup uses the latest aligned sample at or before 600/1200/1500 seconds without
   exposing sample timestamps;
-- lane XP/last-hit and economy gold fields contain only supported facts, and `gold_t` checkpoint
-  values are not relabeled as exact net worth;
+- lane XP/last-hit and economy gold/experience fields contain only supported facts; team deltas
+  use the analyzed-team perspective, individual hero checkpoints use aligned player series, and
+  `gold_t` values are not relabeled as exact net worth;
 - structure counts use attributable timestamped destruction events, not final bitmask timing;
 - structure output uses compact keys rather than zero-filled counter trees;
 - Roshan/Tormentor event lists use `[]` for verified zero and `null` for unavailable/not applicable;
