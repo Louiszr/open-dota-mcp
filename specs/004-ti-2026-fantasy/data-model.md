@@ -151,10 +151,10 @@ All fields are required keys and nullable values:
 |---|---|
 | `kills`, `deaths`, `assists`, `last_hits`, `denies` | nonnegative integer? |
 | `gold_per_minute` | nonnegative integer? |
-| `madstones_collected` | nonnegative integer?; currently null; bundle-use count is not collection |
+| `madstones_collected` | nonnegative integer?; currently null; OpenDota `item_uses.madstone_bundle` is a bundle-use proxy, not collection |
 | `tower_last_hits`, `observer_wards_placed`, `camps_stacked` | nonnegative integer? |
 | `runes_picked_up_or_bottled` | nonnegative integer?; only compatible evidence |
-| `watchers_captured` | nonnegative integer?; currently null; lamp-use count cannot distinguish neutral/enemy captures |
+| `watchers_captured` | nonnegative integer?; currently null; OpenDota `ability_uses.ability_lamp_use` cannot distinguish neutral/enemy capture state |
 | `lotuses_taken` | nonnegative integer?; currently null; item consumption is not collection |
 | `smoke_of_deceit_uses` | nonnegative integer?; parsed item uses only |
 | `roshan_last_hits` | nonnegative integer? |

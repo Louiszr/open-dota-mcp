@@ -1,6 +1,6 @@
 # Implementation Plan: TI 2026 Fantasy Analysis
 
-**Branch**: `004-ti-2026-fantasy` | **Date**: 2026-08-01 | **Spec**: [spec.md](spec.md)
+**Branch**: `004-ti-2026-fantasy` | **Date**: 2026-08-02 | **Spec**: [spec.md](spec.md)
 
 **Input**: Feature specification from `specs/004-ti-2026-fantasy/spec.md`
 
@@ -231,6 +231,11 @@ draft-analysis response or coupling lineup lookup to its patch/tier/report pagin
   `item_uses.madstone_bundle` is a use-event proxy, `ability_uses.ability_lamp_use` combines neutral
   and enemy Watcher captures, and lotus item-use counters measure consumption rather than pickup;
   emit one root warning for each unavailable scoring statistic represented in the result.
+  The audited `dota2-fantasy-optimizer-2026` repository does not improve this contract: it embeds
+  precomputed community-table scores and contains no match-ingestion implementation or per-value
+  provenance. Its likely upstream legacy calculator reads both proxy counters from OpenDota, not
+  STRATZ, but also labels Madstones and Watchers inaccurate. Do not import either aggregate table
+  or proxy as raw per-map fantasy evidence.
   Tormentor last-hits are zero only for an applicable, complete, fully attributed objective ledger;
   a missing ledger or any unattributed Tormentor event keeps the value null. First Blood is false
   only when another player is reliably credited.

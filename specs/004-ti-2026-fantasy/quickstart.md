@@ -72,7 +72,8 @@ uv run pytest tests/unit/test_fantasy_mapping.py tests/unit/test_fantasy_models.
 Expected: all required raw keys and 18 score entries exist; exact formulas match the contract; fractional
 stuns are preserved; zero, false, and null remain distinct; participation handles zero denominator;
 Madstones, Watchers, and lotuses are null with one deduplicated root warning per unavailable stat;
-bundle/lamp/item-use proxies are never presented as collection totals;
+fixtures may contain OpenDota `item_uses.madstone_bundle` and `ability_uses.ability_lamp_use`, but
+those counters are never presented as Madstone collection or exact Watcher-capture totals;
 Tormentor events map by unique, team-consistent `player_slot` and become null when attribution is
 incomplete; Smoke purchases are not counted as uses; the default omits `fantasy_scoring`.
 

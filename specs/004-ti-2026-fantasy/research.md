@@ -155,6 +155,46 @@ update. No compatible per-player lotus collection signal was found; lotus item u
 consumption instead of pickup. Therefore all three fields remain null and each gets one focused,
 deduplicated root warning.
 
+### Audit of `dota2-fantasy-optimizer-2026`
+
+**Decision**: Do not adopt the optimizer's Madstone or Watcher values. Retain both raw fields as
+null, alongside lotuses, until OpenDota exposes a statistic with matching collection/capture
+semantics.
+
+**Rationale**: Repository `Kadadji1/dota2-fantasy-optimizer-2026` was audited at commit
+`26489b2316a0d81bd355e17b0dfd5722da9c27f5` on 2026-08-02. It contains no OpenDota client,
+match IDs, raw match fixtures, or data-generation script. `data/players.ts` embeds already-scored
+Madstone and Watcher aggregates and says they were transcribed from supplied community tables; the
+import commit is likewise named `feat: add 2026 fantasy dataset from community tables`. The UI
+describes 1,601 source matches and only calls Lotus approximate, but those claims do not provide an
+auditable per-stat source chain. The README says a credit for the original statistics author is
+still pending. Consequently this repository demonstrates that values were published, not how the
+underlying events were measured.
+
+The likely upstream community implementation is the linked legacy `bydoodle/dota2fantasy` parser.
+Its code fetches match lists and match details from OpenDota, then maps
+`player.item_uses.madstone_bundle` to `madstone_collected` and
+`player.ability_uses.ability_lamp_use` to `watchers_taken`. Its STRATZ request supplies only
+`firstBloodTime` and Dota Plus hero mastery for other title calculations; it does not supply either
+candidate stat. Thus the two proxy counters are found in OpenDota API match player rows, but they
+still fail the feature's semantic requirement: bundle use is not Madstone collection, and lamp use
+does not distinguish the capture state required by Watchers Taken. The legacy UI itself marks both
+values “not 100% accurate.” OpenDota provenance is necessary for this feature, but it is not
+sufficient when the field measures a different event.
+
+**Alternatives considered**: Trusting the optimizer's precomputed scores would discard per-map
+provenance and null/zero semantics. Treating its methodology copy as proof would confuse an
+attribution claim with executable extraction. Accepting OpenDota proxy counters merely because
+they are present in a match response would knowingly relabel item/ability use events as collection
+or capture totals. Querying STRATZ would expand the approved provider contract and, in the audited
+parser, does not produce these two values anyway.
+
+Audit sources: [optimizer repository](https://github.com/Kadadji1/dota2-fantasy-optimizer-2026/tree/26489b2316a0d81bd355e17b0dfd5722da9c27f5),
+[embedded player values](https://github.com/Kadadji1/dota2-fantasy-optimizer-2026/blob/26489b2316a0d81bd355e17b0dfd5722da9c27f5/data/players.ts),
+[methodology and formulas](https://github.com/Kadadji1/dota2-fantasy-optimizer-2026/blob/26489b2316a0d81bd355e17b0dfd5722da9c27f5/data/rules.ts),
+[community-table import](https://github.com/Kadadji1/dota2-fantasy-optimizer-2026/commit/c234ff09a380b9c2c95de5b713753f1296c97d36),
+and [legacy OpenDota mappings](https://github.com/bydoodle/dota2fantasy/blob/973d3f98860f94c842af70ef9539595db90a4f5d/main.py#L367-L505).
+
 Primary sources: [MatchResponse player fields](https://github.com/odota/core/blob/2d67379fbba90b2fd015c6f0f4080d394a5741e9/svc/api/responses/MatchResponse.ts#L230-L810),
 [computed statistics](https://github.com/odota/core/blob/2d67379fbba90b2fd015c6f0f4080d394a5741e9/svc/util/compute.ts#L100-L149),
 [database player columns](https://github.com/odota/core/blob/2d67379fbba90b2fd015c6f0f4080d394a5741e9/sql/create_tables.sql#L49-L147),
