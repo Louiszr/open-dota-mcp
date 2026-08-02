@@ -128,6 +128,21 @@
 - [X] T035 [US4] Wire requested groups additively into immutable match projections without computing or serializing unrequested groups in `src/open_dota_mcp/services/analysis.py`
 - [X] T036 [US4] Run and pass the complete evidence mapping, model, contract, and maximum-page acceptance suite in `tests/unit/test_analysis_mapping.py`, `tests/unit/test_analysis_models.py`, and `tests/contract/test_analysis_tool.py`
 
+### Experience expansion for User Story 4
+
+**Goal**: Extend the cohesive `economy` group with analyzed-team experience differences and both teams' per-hero experience at the existing 10/20-minute checkpoints without changing the slim default.
+
+**Independent Test**: Against complete, partial, short-match, Radiant, and Dire fixtures, verify `radiant_xp_adv` sign handling, aligned `xp_t` hero checkpoints, preserved numeric zero, sparse missing values, no reconstruction of a missing team advantage from hero series, and unchanged omission of the unrequested `economy` group.
+
+- [ ] T037 [P] [US4] Add explicit `radiant_xp_adv` and aligned, missing, and partial player `xp_t` checkpoint data to `tests/fixtures/opendota/analysis.json`
+- [ ] T038 [P] [US4] Add deterministic mapping tests for Radiant/Dire experience-difference symmetry, 10/20-minute aligned hero experience, short matches, verified zero, missing series, and no team-difference reconstruction in `tests/unit/test_analysis_mapping.py`
+- [ ] T039 [P] [US4] Extend sparse public-model serialization tests for nullable experience differences and `hero_experience` records without provenance or diagnostic wrappers in `tests/unit/test_analysis_models.py`
+- [ ] T040 [P] [US4] Extend MCP contract tests for the economy experience example, slim-default omission, additive group selection, both-team hero records, and sparse incomplete evidence in `tests/contract/test_analysis_tool.py`
+- [ ] T041 [US4] Add typed experience-difference fields and per-hero experience checkpoint records to `EconomyEvidence` in `src/open_dota_mcp/models/analysis.py`
+- [ ] T042 [US4] Project side-aware `radiant_xp_adv` differences and aligned `xp_t` observations for both teams without inference in `src/open_dota_mcp/services/analysis.py`
+- [ ] T043 [P] [US4] Document economy team and hero experience semantics, checkpoint sources, sign handling, and sparse behavior in `README.md`
+- [ ] T044 [US4] Run and pass the focused experience mapping, model, and MCP contract suite in `tests/unit/test_analysis_mapping.py`, `tests/unit/test_analysis_models.py`, and `tests/contract/test_analysis_tool.py`
+
 **Checkpoint**: Every requested evidence group is accurate, sparse, independently selectable, and agent-context bounded.
 
 ---
@@ -136,14 +151,15 @@
 
 **Purpose**: Synchronize documentation, prove MCP interoperability, and complete the independent quality gate.
 
-- [X] T037 [P] Document `analyze_pro_team_drafts`, its focused inputs, slim default, five groups, pagination, aggregate coverage, tier choices, patch matching, checkpoint semantics, sparse evidence, retry bounds, and lookup workflow in `README.md`
-- [X] T038 [P] Update the Codex-compatible stdio integration to list exactly four read-only tools, invoke the report, follow its cursor, keep stdout protocol-only, and keep diagnostics on stderr in `tests/integration/test_stdio.py`
-- [X] T039 Validate every automated scenario and command in the completed feature guide and correct discrepancies in `specs/003-draft-analysis-retries/quickstart.md`
-- [X] T040 Reconcile the live tool schema and serialized response/error examples against `specs/003-draft-analysis-retries/contracts/mcp-tool.md` and `specs/003-draft-analysis-retries/contracts/response-schema.md`
-- [X] T041 Run the complete regression suite and resolve compatibility failures across `tests/contract/`, `tests/unit/`, and `tests/integration/`
-- [X] T042 Require an independent sub-agent that performed no implementation to audit public-surface and risk-based tests, run `uv run ruff check .`, `uv run ruff format --check .`, and `uv run pytest`, require remediation and re-run on any failure, and record the passing result in `specs/003-draft-analysis-retries/tasks.md`
+- [X] T045 [P] Document `analyze_pro_team_drafts`, its focused inputs, slim default, five groups, pagination, aggregate coverage, tier choices, patch matching, checkpoint semantics, sparse evidence, retry bounds, and lookup workflow in `README.md`
+- [X] T046 [P] Update the Codex-compatible stdio integration to list exactly four read-only tools, invoke the report, follow its cursor, keep stdout protocol-only, and keep diagnostics on stderr in `tests/integration/test_stdio.py`
+- [X] T047 Validate every automated scenario and command in the completed feature guide and correct discrepancies in `specs/003-draft-analysis-retries/quickstart.md`
+- [X] T048 Reconcile the live tool schema and serialized response/error examples against `specs/003-draft-analysis-retries/contracts/mcp-tool.md` and `specs/003-draft-analysis-retries/contracts/response-schema.md`
+- [X] T049 Run the complete regression suite and resolve compatibility failures across `tests/contract/`, `tests/unit/`, and `tests/integration/`
+- [X] T050 Require an independent sub-agent that performed no implementation to audit public-surface and risk-based tests, run `uv run ruff check .`, `uv run ruff format --check .`, and `uv run pytest`, require remediation and re-run on any failure, and record the passing result in `specs/003-draft-analysis-retries/tasks.md`
   - Independent QA `/root/independent_qa` initially found a parse-coverage discrepancy and missing risk matrices; remediation was completed and independently re-reviewed.
   - Final QA result: required public/risk-based coverage complete; `uv run ruff check .` exit 0; `uv run ruff format --check .` exit 0 (88 files); `uv run pytest` exit 0 (202 passed, 1 skipped, 20 warnings).
+- [ ] T051 Require a new independent sub-agent that performs none of the experience implementation to audit the expanded economy tests, run `uv run ruff check .`, `uv run ruff format --check .`, and `uv run pytest`, require remediation and re-run on any failure, and record the passing result in `specs/003-draft-analysis-retries/tasks.md`
 
 ---
 
@@ -157,14 +173,14 @@
 - **US2 (Phase 4)**: Depends on Foundational and functionally depends on US1 for resilient multi-read orchestration.
 - **US3 (Phase 5)**: Depends on the US2 request, selection, and projection pipeline.
 - **US4 (Phase 6)**: Depends on the US2 pipeline; its draft helpers may begin independently of US3, but final report integration uses both.
-- **Polish (Phase 7)**: Depends on all stories selected for delivery; T042 is the terminal implementation gate.
+- **Polish (Phase 7)**: Depends on all stories selected for delivery; T051 is the terminal implementation gate.
 
 ### User Story Dependency Graph
 
 ```text
 Setup -> Foundation -> US1 -> US2 -> US3
                              └-----> US4
-US3 + US4 -> Polish -> Independent QA
+US3 + US4 (including experience expansion) -> Polish -> Independent QA
 ```
 
 ### Within Each User Story
@@ -183,7 +199,8 @@ US3 + US4 -> Polish -> Independent QA
 - US2 test tasks T015-T017 can run in parallel; after the selection contract stabilizes, T020 can proceed independently from the service implementation in T018-T019.
 - US3 test tasks T024-T025 can run in parallel.
 - US4 test tasks T028-T030 and draft-helper task T031 target separate files and can run in parallel before T032-T035 converge in `services/analysis.py`.
-- Documentation T037 and stdio coverage T038 can run in parallel after the public contract stabilizes.
+- US4 experience tasks T037-T040 can be authored in parallel; T041 and T042 then update the public model and projection, while T043 can proceed independently against the settled contract.
+- Documentation T045 and stdio coverage T046 can run in parallel after the public contract stabilizes.
 
 ## Parallel Example: User Story 1
 
@@ -215,6 +232,9 @@ Task T028: Add evidence mapping tests in tests/unit/test_analysis_mapping.py
 Task T029: Add sparse evidence model tests in tests/unit/test_analysis_models.py
 Task T030: Add evidence-group MCP contract tests in tests/contract/test_analysis_tool.py
 Task T031: Add reusable chronology and matchup helpers in src/open_dota_mcp/services/drafts.py
+Task T038: Add experience mapping tests in tests/unit/test_analysis_mapping.py
+Task T039: Add experience serialization tests in tests/unit/test_analysis_models.py
+Task T040: Add economy experience MCP contract tests in tests/contract/test_analysis_tool.py
 ```
 
 ## Implementation Strategy
@@ -232,7 +252,7 @@ US1 is the technical MVP because every report call fans out across several upstr
 1. Deliver US1: bounded retry recovery for every current OpenDota GET.
 2. Deliver US2: one-call lean team report, default selection, coverage, and pagination.
 3. Deliver US3: focused team-relative scenario comparisons.
-4. Deliver US4: opt-in draft and game-state evidence.
+4. Deliver US4: opt-in draft and game-state evidence, including gold and experience economy checkpoints.
 5. Complete documentation, interoperability checks, full regression, and independent QA.
 
 ## Notes
@@ -241,4 +261,4 @@ US1 is the technical MVP because every report call fans out across several upstr
 - User-story labels provide direct traceability to `spec.md` acceptance scenarios.
 - Automated tests remain offline, deterministic, and free of real sleeps and API keys.
 - Public output must remain smaller than internal normalized state and must not leak filtering or evidence diagnostics.
-- T042 cannot pass until all required tests and all three quality commands pass under an independent non-implementing sub-agent.
+- T051 cannot pass until the expanded experience coverage and all three quality commands pass under an independent non-implementing sub-agent.
