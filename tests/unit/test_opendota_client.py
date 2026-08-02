@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC, datetime, timedelta
 
 import httpx
 import pytest
@@ -219,7 +220,7 @@ async def test_retryable_status_recovers_with_bounded_delay(status: int) -> None
     ) as client:
         assert await client.get_leagues() == []
     assert attempts == 2
-    assert delays == [1.0 if status == 429 else 0.25]
+    assert delays == [2.0]
 
 
 @pytest.mark.asyncio
@@ -242,7 +243,7 @@ async def test_invalid_retry_after_uses_exponential_jitter_fallback() -> None:
             await client.get_leagues()
     assert caught.value.code == "upstream_rate_limited"
     assert caught.value.retry_exhausted is True
-    assert delays == [0.5, 1.0]
+    assert delays == [2.4, 4.8, 9.6, 19.2, 38.4]
 
 
 @pytest.mark.asyncio
@@ -296,3 +297,218 @@ async def test_cancellation_is_immediate() -> None:
     async with OpenDotaClient(transport=httpx.MockTransport(handler)) as client:
         with pytest.raises(asyncio.CancelledError):
             await client.get_leagues()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("raw", [None, "", "0", "-1", "nan", "inf", "invalid"])
+async def test_unusable_retry_after_classes_use_safe_fallback(raw: str | None) -> None:
+    attempts = 0
+    delays: list[float] = []
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        headers = {"Retry-After": raw} if raw is not None else {}
+        return httpx.Response(429 if attempts == 1 else 200, headers=headers, json=[])
+
+    async def sleep(delay: float) -> None:
+        delays.append(delay)
+
+    async with OpenDotaClient(
+        transport=httpx.MockTransport(handler), sleeper=sleep, jitter=lambda _upper: 0
+    ) as client:
+        assert await client.get_leagues() == []
+    assert attempts == 2 and delays == [2]
+
+
+@pytest.mark.asyncio
+async def test_retry_after_seconds_date_and_repeated_short_guidance_never_undercut_base() -> None:
+    now = datetime(2026, 7, 29, 12, 0, tzinfo=UTC)
+    date_value = (now + timedelta(seconds=9)).strftime("%a, %d %b %Y %H:%M:%S GMT")
+    for header, expected in [("7", 7.0), (date_value, 9.0)]:
+        attempts = 0
+        delays: list[float] = []
+
+        def handler(_request: httpx.Request, retry_after: str = header) -> httpx.Response:
+            nonlocal attempts
+            attempts += 1
+            return httpx.Response(
+                429 if attempts == 1 else 200,
+                headers={"Retry-After": retry_after},
+                json=[],
+            )
+
+        async def sleep(delay: float, observed: list[float] = delays) -> None:
+            observed.append(delay)
+
+        async with OpenDotaClient(
+            transport=httpx.MockTransport(handler),
+            sleeper=sleep,
+            jitter=lambda _upper: 0,
+            wall_clock=lambda: now,
+        ) as client:
+            await client.get_leagues()
+        assert delays == [expected]
+
+    attempts = 0
+    delays = []
+
+    def repeated(_request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        return httpx.Response(429 if attempts < 3 else 200, headers={"Retry-After": "1"}, json=[])
+
+    async def repeated_sleep(delay: float) -> None:
+        delays.append(delay)
+
+    async with OpenDotaClient(
+        transport=httpx.MockTransport(repeated),
+        sleeper=repeated_sleep,
+        jitter=lambda _upper: 0,
+    ) as client:
+        await client.get_leagues()
+    assert delays == [2, 4]
+
+
+@pytest.mark.asyncio
+async def test_expired_http_date_uses_fallback_instead_of_immediate_retry() -> None:
+    now = datetime(2026, 7, 29, 12, 0, tzinfo=UTC)
+    expired = (now - timedelta(seconds=1)).strftime("%a, %d %b %Y %H:%M:%S GMT")
+    attempts = 0
+    delays: list[float] = []
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        return httpx.Response(
+            429 if attempts == 1 else 200,
+            headers={"Retry-After": expired},
+            json=[],
+        )
+
+    async def sleep(delay: float) -> None:
+        delays.append(delay)
+
+    async with OpenDotaClient(
+        transport=httpx.MockTransport(handler),
+        sleeper=sleep,
+        jitter=lambda _upper: 0,
+        wall_clock=lambda: now,
+    ) as client:
+        await client.get_leagues()
+    assert attempts == 2 and delays == [2]
+
+
+@pytest.mark.asyncio
+async def test_request_time_counts_toward_monotonic_elapsed_budget_before_sleep() -> None:
+    now = {"value": 0.0}
+    attempts = 0
+    sleeps = 0
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        now["value"] += 91
+        return httpx.Response(503)
+
+    async def sleep(_delay: float) -> None:
+        nonlocal sleeps
+        sleeps += 1
+
+    async with OpenDotaClient(
+        transport=httpx.MockTransport(handler),
+        clock=lambda: now["value"],
+        sleeper=sleep,
+        jitter=lambda _upper: 0,
+    ) as client:
+        with pytest.raises(UpstreamError) as caught:
+            await client.get_leagues()
+    assert caught.value.reason == "elapsed_budget"
+    assert attempts == 1 and sleeps == 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("settings", "reason"),
+    [
+        (Settings(max_attempts=1), "attempt_limit"),
+        (Settings(retry_delay_cap=1), "individual_delay"),
+        (Settings(retry_delay_budget=1), "delay_budget"),
+        (Settings(retry_elapsed_budget=1), "elapsed_budget"),
+    ],
+)
+async def test_each_retry_budget_exhausts_without_an_extra_request(
+    settings: Settings, reason: str
+) -> None:
+    attempts = 0
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        return httpx.Response(503)
+
+    async with OpenDotaClient(
+        settings,
+        transport=httpx.MockTransport(handler),
+        sleeper=lambda _delay: asyncio.sleep(0),
+        jitter=lambda _upper: 0,
+    ) as client:
+        with pytest.raises(UpstreamError) as caught:
+            await client.get_leagues()
+    assert attempts == 1
+    assert caught.value.reason == reason
+
+
+@pytest.mark.asyncio
+async def test_caller_deadline_refuses_sleep_and_cancellation_during_sleep_stops_attempts() -> None:
+    attempts = 0
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        return httpx.Response(503)
+
+    async with OpenDotaClient(
+        transport=httpx.MockTransport(handler),
+        deadline=lambda: 1.0,
+        clock=lambda: 0.0,
+        jitter=lambda _upper: 0,
+    ) as client:
+        with pytest.raises(UpstreamError) as caught:
+            await client.get_leagues()
+    assert caught.value.reason == "deadline" and attempts == 1
+
+    started = asyncio.Event()
+
+    async def blocked_sleep(_delay: float) -> None:
+        started.set()
+        await asyncio.Event().wait()
+
+    client = OpenDotaClient(
+        transport=httpx.MockTransport(handler), sleeper=blocked_sleep, jitter=lambda _upper: 0
+    )
+    task = asyncio.create_task(client.get_leagues())
+    await started.wait()
+    calls_before_cancel = attempts
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    await client.aclose()
+    assert attempts == calls_before_cancel
+
+
+@pytest.mark.asyncio
+async def test_excessive_guidance_is_exposed_safely_without_raw_diagnostics(caplog) -> None:
+    transport = httpx.MockTransport(
+        lambda _request: httpx.Response(
+            429, headers={"Retry-After": "99", "Authorization": "secret-header"}
+        )
+    )
+    async with OpenDotaClient(
+        Settings(api_key="secret-key"), transport=transport, jitter=lambda _upper: 0
+    ) as client:
+        with pytest.raises(UpstreamError) as caught:
+            await client.get_leagues()
+    assert caught.value.reason == "individual_delay"
+    assert caught.value.retry_after_seconds == 99
+    assert "secret-key" not in caplog.text and "secret-header" not in caplog.text

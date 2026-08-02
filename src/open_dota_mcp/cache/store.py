@@ -113,6 +113,8 @@ class PopulationFailure:
     status_code: int | None
     retry_exhausted: bool
     retryable_later: bool
+    reason: str | None = None
+    retry_after_seconds: float | None = None
 
 
 class CacheStore:
@@ -374,6 +376,8 @@ class CacheStore:
         status_code: int | None,
         retry_exhausted: bool,
         retryable_later: bool,
+        reason: str | None = None,
+        retry_after_seconds: float | None = None,
     ) -> None:
         """Publish a bounded terminal failure for callers attached to an attempt."""
         now = self._clock()
@@ -393,7 +397,9 @@ class CacheStore:
             if owned:
                 connection.execute(
                     "INSERT OR REPLACE INTO population_outcomes "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    "(attempt_id, key_digest, generation, error_code, message, status_code, "
+                    "retry_exhausted, retryable_later, reason, retry_after_seconds, completed_at, "
+                    "retain_until) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (
                         lease.attempt_id,
                         identity.digest,
@@ -403,6 +409,8 @@ class CacheStore:
                         status_code,
                         int(retry_exhausted),
                         int(retryable_later),
+                        reason[:40] if reason else None,
+                        retry_after_seconds,
                         now,
                         now + 30.0,
                     ),
@@ -418,13 +426,14 @@ class CacheStore:
         with self._connect() as connection:
             connection.execute("DELETE FROM population_outcomes WHERE retain_until <= ?", (now,))
             row = connection.execute(
-                "SELECT error_code, message, status_code, retry_exhausted, retryable_later "
+                "SELECT error_code, message, status_code, retry_exhausted, retryable_later, "
+                "reason, retry_after_seconds "
                 "FROM population_outcomes WHERE attempt_id = ?",
                 (attempt_id,),
             ).fetchone()
         if row is None:
             return None
-        return PopulationFailure(row[0], row[1], row[2], bool(row[3]), bool(row[4]))
+        return PopulationFailure(row[0], row[1], row[2], bool(row[3]), bool(row[4]), row[5], row[6])
 
     def info(self) -> CacheInfo:
         """Return aggregate counters and main-database capacity values."""
@@ -589,6 +598,7 @@ class CacheStore:
                     generation INTEGER NOT NULL,
                     error_code TEXT NOT NULL, message TEXT NOT NULL, status_code INTEGER,
                     retry_exhausted INTEGER NOT NULL, retryable_later INTEGER NOT NULL,
+                    reason TEXT, retry_after_seconds REAL,
                     completed_at REAL NOT NULL, retain_until REAL NOT NULL);
                 CREATE INDEX IF NOT EXISTS outcome_expiry ON population_outcomes(retain_until);
                 CREATE TABLE IF NOT EXISTS entry_cursors (
@@ -599,6 +609,15 @@ class CacheStore:
                 COMMIT;
                 """
             )
+            outcome_columns = {
+                row[1] for row in connection.execute("PRAGMA table_info(population_outcomes)")
+            }
+            if "reason" not in outcome_columns:
+                connection.execute("ALTER TABLE population_outcomes ADD COLUMN reason TEXT")
+            if "retry_after_seconds" not in outcome_columns:
+                connection.execute(
+                    "ALTER TABLE population_outcomes ADD COLUMN retry_after_seconds REAL"
+                )
             connection.execute(
                 "INSERT OR IGNORE INTO cache_control VALUES (1, 0, ?, ?)",
                 (SCHEMA_VERSION, self._clock()),

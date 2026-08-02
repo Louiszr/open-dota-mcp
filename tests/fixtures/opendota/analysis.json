@@ -1,0 +1,89 @@
+{
+  "team": {"team_id": 1, "name": "Radiant Pro", "tag": "RP"},
+  "teams": [
+    {"team_id": 1, "name": "Radiant Pro", "tag": "RP"},
+    {"team_id": 2, "name": "Dire Pro", "tag": "DP"}
+  ],
+  "patches": [
+    {"id": 58, "name": "7.33", "date": 1682553600},
+    {"id": 60, "name": "7.40", "date": 1751328000},
+    {"id": 61, "name": "7.41", "date": 1782864000}
+  ],
+  "leagues": [
+    {"leagueid": 10, "name": "Premier Cup", "tier": "premium"},
+    {"leagueid": 11, "name": "Pro Cup", "tier": "professional"}
+  ],
+  "heroes": [
+    {"id": 1, "localized_name": "Lina"},
+    {"id": 2, "localized_name": "Storm Spirit"},
+    {"id": 3, "localized_name": "Axe"},
+    {"id": 4, "localized_name": "Juggernaut"}
+  ],
+  "pro_players": [
+    {"account_id": 101, "name": "MidPlayer"},
+    {"account_id": 201, "name": "EnemyMid"}
+  ],
+  "team_matches": [
+    {"match_id": 2002, "start_time": 1784779300, "duration": 1800, "leagueid": 10, "league_name": "Premier Cup"},
+    {"match_id": 2001, "start_time": 1784779200, "duration": 1300, "leagueid": 10, "league_name": "Premier Cup"},
+    {"match_id": 2003, "start_time": 1784779100, "duration": 1700, "leagueid": 11, "league_name": "Pro Cup"},
+    {"match_id": 2004, "start_time": 1784779000, "duration": 1200, "leagueid": 10, "league_name": "Premier Cup"},
+    {"match_id": 2001, "start_time": 1784778000, "duration": 1300, "leagueid": 10, "league_name": "Premier Cup"}
+  ],
+  "details": {
+    "2001": {
+      "match_id": 2001,
+      "version": 21,
+      "start_time": 1784779200,
+      "duration": 1300,
+      "patch": 61,
+      "leagueid": 10,
+      "league": {"name": "Premier Cup", "tier": "premium"},
+      "radiant_team_id": 1,
+      "radiant_name": "Radiant Pro",
+      "dire_team_id": 2,
+      "dire_name": "Dire Pro",
+      "radiant_win": true,
+      "picks_bans": [
+        {"is_pick": false, "hero_id": 3, "team": 0, "order": 0},
+        {"is_pick": false, "hero_id": 4, "team": 1, "order": 1},
+        {"is_pick": true, "hero_id": 2, "team": 1, "order": 2},
+        {"is_pick": true, "hero_id": 1, "team": 0, "order": 3}
+      ],
+      "players": [
+        {"hero_id": 1, "player_slot": 0, "account_id": 101, "name": "MidPlayer", "lane_role": 2, "times": [0, 590, 600, 1200], "xp_t": [0, 3900, 4000, 9000], "lh_t": [0, 49, 50, 130], "gold_t": [600, 4550, 4700, 10000]},
+        {"hero_id": 2, "player_slot": 128, "account_id": 201, "name": "EnemyMid", "lane_role": 2, "times": [0, 600, 1200], "xp_t": [0, 3700, 8500], "lh_t": [0, 44, 120], "gold_t": [600, 4300, 9600]}
+      ],
+      "radiant_gold_adv": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 400, 400, 400, 400, 400, 400, 400, 400, 400, 400, -200],
+      "radiant_xp_adv": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 300, 300, 300, 300, 300, 300, 300, 300, 300, 300, -500],
+      "objectives": [
+        {"type": "building_kill", "time": 550, "key": "npc_dota_goodguys_tower1_top"},
+        {"type": "building_kill", "time": 1100, "key": "npc_dota_badguys_tower1_mid"},
+        {"type": "CHAT_MESSAGE_ROSHAN_KILL", "time": 900, "team": 0},
+        {"type": "CHAT_MESSAGE_MINIBOSS_KILL", "time": 1250, "team": 1}
+      ]
+    },
+    "2002": {"match_id": 2002, "version": null},
+    "2003": {
+      "match_id": 2003,
+      "version": 21,
+      "start_time": 1784779100,
+      "duration": 1700,
+      "patch": 60,
+      "leagueid": 11,
+      "league": {"name": "Pro Cup", "tier": "professional"},
+      "radiant_team_id": 2,
+      "radiant_name": "Dire Pro",
+      "dire_team_id": 1,
+      "dire_name": "Radiant Pro",
+      "radiant_win": true,
+      "picks_bans": [{"is_pick": false, "hero_id": 3, "team": 0, "order": 0}],
+      "players": [
+        {"hero_id": 3, "player_slot": 0, "lane_role": 1, "times": [0, 600, 1200], "xp_t": [0, 0]},
+        {"hero_id": 4, "player_slot": 128, "lane_role": 3, "times": [0, 600, 1200]}
+      ],
+      "objectives": []
+    },
+    "2004": {"unexpected": "malformed"}
+  }
+}

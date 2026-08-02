@@ -84,3 +84,21 @@ def test_replacement_registry_invalidates_tokens_and_default_capacity_is_lru() -
     with pytest.raises(PaginationError) as missing:
         replacement.next_page(tokens[-1], tool="x")
     assert missing.value.code == "invalid_continuation"
+
+
+def test_snapshot_context_is_retained_across_rotating_pages() -> None:
+    tokens = iter(["first", "second"])
+    registry = SnapshotRegistry(token_factory=lambda: next(tokens))
+    _, first = registry.first_page(
+        tool="analysis",
+        query={"team_id": 1},
+        items=[1, 2, 3],
+        page_size=1,
+        context={"coverage": {"examined": 3}},
+    )
+    page, second, context = registry.next_page_with_context(
+        str(first.continuation_token), tool="analysis"
+    )
+    assert page == [2]
+    assert second.continuation_token == "second"
+    assert context == {"coverage": {"examined": 3}}
