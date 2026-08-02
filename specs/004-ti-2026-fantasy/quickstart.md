@@ -43,9 +43,11 @@ uv run pytest tests/unit/test_identity_resolution.py tests/contract/test_fantasy
   -k "identity or candidate or validation"
 ```
 
-Expected: stable IDs resolve; harmless case/punctuation/spacing differences normalize; only one
-exact name auto-selects; collisions/substrings return at most 10 candidates; blank/no-match and
-dual selectors fail; invalid counts, dates, tiers, patterns, and include groups fail before details.
+Expected: stable IDs resolve; Unicode NFKC, case folding, punctuation/whitespace-run replacement,
+and trimming produce deterministic normalized names; normalized-empty queries fail; only one exact
+name auto-selects; collisions/substrings return at most 10 candidates ordered by normalized name
+then account ID; no-match and dual selectors fail; invalid counts, dates, tiers, patterns, and
+include groups fail before details.
 
 ## 3. Post-filter collection and match context
 
@@ -59,8 +61,9 @@ contradictory league provenance, three series, two patches, and all three named 
 with AND semantics. Every public or unverified record is excluded before caller filters and the
 limit, including with `tournament_tiers=["all"]`; the request schema has no pub/provenance bypass.
 Dates are inclusive UTC; limit is applied last; maps are newest first; missing series stays null;
-incomplete/abandoned maps do not consume the limit; exhaustive no match succeeds empty; bounded
-truncation is explicit.
+incomplete/abandoned maps do not consume the limit; exhaustive no match succeeds empty. History
+pages contain at most 100 records, no request examines more than 500 history records or hydrates more
+than 200 unique match details, and either safety limit produces explicit limit-specific truncation.
 
 ## 4. Raw statistics and all formulas
 
@@ -86,7 +89,9 @@ uv run pytest tests/contract/test_fantasy_tool.py -q -k "resource or reference o
 Expected: the resource lists and reads at `opendota://fantasy/ti-2026/scoring` with JSON MIME type;
 it contains one edition, 18 canonical emblems, five exact quality tiers, aggregation, source links,
 the frozen five-trait/eight-prefix/eight-suffix inventory, and status/caveat data; unknown effects
-are nonnumeric and observed eligibility rates are not modifiers; service/resource formulas have exact parity;
+are nonnumeric and observed eligibility rates are not modifiers; application order, scope,
+prerequisites, and projection semantics support retrospective candidate calculations without
+turning configurations into historical match facts; service/resource formulas have exact parity;
 reading performs no network request and works outside the repository cwd.
 
 ## 6. Retry, cache, and partial failure
@@ -111,7 +116,11 @@ uv run pytest tests/integration/test_roster_to_fantasy.py \
 Expected: a Codex-compatible client lists six read-only tools and one resource, resolves a team to
 five cross-checked player IDs, passes one ID directly to the fantasy tool, resolves a player in one
 call by ID or two calls after ambiguity, obtains a slim default response, opts into scoring, reads
-the reference offline, and observes protocol-only stdout.
+the reference offline, and observes protocol-only stdout. A fixed 20-case corpus spans at least two
+players, two candidate emblem configurations, known/null series IDs, unavailable statistics, and
+known/unknown modifiers; at least 18 cases must match expected evidence selection, raw and projected
+scores, series aggregation, and uncertainty. Candidate configurations and resulting projections are
+never reported as observed historical match properties.
 
 ## 8. Complete quality gate
 

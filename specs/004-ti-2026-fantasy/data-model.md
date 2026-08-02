@@ -1,7 +1,8 @@
 # Data Model: TI 2026 Fantasy Analysis
 
 Public tool models are typed Pydantic models. Every raw-stat field is present even when null;
-optional groups and match-bound modifier data use sparse serialization.
+optional groups use sparse serialization. Candidate fantasy configurations are client-side inputs
+to retrospective analysis and are never modeled as historical match properties.
 
 ## Latest observed lineup
 
@@ -107,9 +108,14 @@ catalog IDs, regex engine details, or per-map filter dispositions.
 
 ### `FantasyCoverage`
 
-Fields: nonnegative `history_records_examined`, `details_requested`, `details_usable`, and boolean
-`history_exhausted`. Optional `truncated=true` means the bounded operation stopped without proving
-source exhaustion; a corresponding warning is required.
+Fields: nonnegative `history_records_examined` (0-500), `details_requested` (0-200),
+`details_usable`, boolean `history_exhausted`, boolean `truncated`, and optional `terminal_reason`.
+History pages contain at most 100 records. `terminal_reason` distinguishes `requested_count_met`,
+`history_exhausted`, `history_record_limit`, and `hydrated_detail_limit`. The two limit reasons
+require `truncated=true` and a warning that additional eligible maps may exist; only source
+exhaustion proves an empty or short result exhaustive. Caller cancellation propagates, and deadline
+or retry exhaustion uses the structured upstream-error boundary rather than a successful terminal
+reason.
 
 ## Match evidence
 
@@ -180,7 +186,8 @@ Field: `emblems`, exactly 18 `RawEmblemScore` entries in canonical order.
 
 Fields: stable `key`, color (`red`/`blue`/`green`), `inputs` mapping of raw field names to their
 actual nullable values, and nullable numeric `raw_points`. Formula prose, sources, quality, traits,
-and titles remain in the referenced resource.
+and titles remain in the referenced resource. This model never contains historical configuration or
+post-modifier fields.
 
 ### Formula operations
 
@@ -197,7 +204,7 @@ The scorer rejects nonfinite or invalid typed inputs; it never executes formula 
 
 Top-level fields: `edition`, `competition`, `effective_date` (nullable), `retrieved_at`,
 `raw_score_definition`, 18 `emblems`, five `quality_tiers`, `traits`, `titles`, `aggregation`,
-`sources`, and `caveats`.
+`projection_semantics`, `sources`, and `caveats`.
 
 Each rule fact contains a stable ID, scope, prerequisites/order/stacking where applicable, nullable
 numeric effect, `official`/`community_verified`/`unknown` status, source IDs, and caveat. Unknown
@@ -209,6 +216,11 @@ Implementation transcribes the frozen inventory into package JSON and validates 
 references, and scorer parity. A known but unverified trait/title fact remains present with null
 numeric effect and `unknown` status rather than being deferred or guessed.
 
+`projection_semantics` states that historical maps contribute observed raw evidence, candidate
+configurations are selected by the analyzing client, and any post-modifier result is a
+counterfactual projection. Modifier facts provide the order, scope, prerequisites, and evidence
+status needed for that calculation without becoming fields on `FantasyMatchEvidence`.
+
 ## Relationships and states
 
 ```text
@@ -219,7 +231,8 @@ PlayerFantasyRequest -> resolved player | candidates | error
 resolved player -> bounded history -> verified details -> eligible maps -> post-filter slice
 FantasyMatchEvidence -> FantasyMatchContext + FantasyRawStats + FantasyScoring?
 FantasyScoring -> 18 RawEmblemScore
-FantasyScoringReference -> emblems + quality tiers + traits + titles + aggregation + sources
+candidate configuration + FantasyScoringReference + historical raw evidence -> projected score
+FantasyScoringReference -> emblems + quality tiers + traits + titles + aggregation + projection semantics + sources
 ```
 
 Collector state:

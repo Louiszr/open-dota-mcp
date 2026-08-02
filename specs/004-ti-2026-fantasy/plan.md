@@ -14,7 +14,8 @@ match detail plus authoritative league evidence, rejects public or unverified ma
 caller override, applies patch/date/tier filters, and returns compact player-relative context plus all
 18 nullable raw fantasy inputs. One additive `fantasy_scoring` group computes pre-modifier points.
 Add a package-static JSON MCP resource at `opendota://fantasy/ti-2026/scoring` for formulas, quality
-tiers, aggregation, traits, titles, evidence status, and sources. No fantasy loadouts are inferred.
+tiers, aggregation, traits, titles, evidence status, and sources. Agents use those rules to apply
+candidate configurations retrospectively; historical maps never carry an observed fantasy loadout.
 
 ## Technical Context
 
@@ -35,14 +36,16 @@ in-memory FastMCP tool/resource contract tests, temporary cache stores, and stdi
 
 **Performance Goals**: Resolve a lineup from at most five completed team-history records and return
 exactly five compact players; return at most 100 fantasy maps (20 default); process newest history in bounded
-pages; hydrate details with concurrency 5; stop once enough eligible maps are established or the
-bounded history/execution budget is exhausted; issue no network request when reading scoring rules
+pages of at most 100 records; examine at most 500 history records and hydrate at most 200 unique
+match details with concurrency 5; stop once enough eligible maps are established or either fixed
+budget is exhausted; issue no network request when reading scoring rules
 
 **Constraints**: Latest observed lineup, not authoritative current roster; positions inferred only
 from a clean parsed 2-1-2 lane distribution and distinct ten-minute side-lane farm; the match's
 five IDs must equal the team endpoint's five explicit current members; mismatches cannot infer; ambiguous
 positions are null; post-filter newest-first fantasy limit; inclusive UTC dates; timeout-bounded 64-character
-patch expressions; Tier 1 defaults to `premium`; no caller pagination; explicit null/zero/false
+patch expressions; Tier 1 defaults to `premium`; no caller pagination; fixed non-configurable
+500-history-record and 200-match-detail budgets with explicit truncation reasons; explicit null/zero/false
 semantics; professional-league provenance is mandatory before all caller filters and `all` never
 includes pubs; no public-match input; no series or modifier inference; finite existing retry/deadline policy; protocol-only
 stdout; deterministic offline tests
@@ -81,7 +84,8 @@ most 10 identity candidates, and a bounded professional-match history traversal 
   is a bounded compact map collection. The sole
   cohesive opt-in group is `fantasy_scoring`; arbitrary upstream fields are excluded. Caller
   pagination is inapplicable because `match_count` is a finite 1-100 post-filter collection bound;
-  the tool reports history coverage/truncation rather than silently claiming exhaustive results.
+  the tool reports examined/hydrated coverage, the reached 500-record or 200-detail limit, and
+  truncation rather than silently claiming exhaustive results.
 
 ### Post-design re-check
 
@@ -195,13 +199,15 @@ draft-analysis response or coupling lineup lookup to its patch/tier/report pagin
 1. Validate exactly one player selector, count, dates, tier values, include values, and the
    timeout-bounded patch expression before detail reads. Load the professional, patch, league,
    hero, and team reference catalogs through the existing cache boundary.
-2. Resolve a stable account ID directly against `/proPlayers`, or normalize a professional name
-   and auto-select only one exact normalized match. Otherwise return at most 10 deterministic
-   candidates and require the account ID.
-3. Traverse the verified player-specific match history newest-first with `limit`/`offset` in bounded source
-   pages, deduplicate IDs, and cheaply reject authoritative date mismatches. Hydrate candidate
-   `/matches/{match_id}` records with concurrency 5 until the requested post-filter count is met,
-   history ends, or the documented execution/history ceiling is reached.
+2. Resolve a stable account ID directly against `/proPlayers`, or normalize the query and catalog
+   names with Unicode NFKC, Unicode case folding, punctuation/whitespace-run replacement with one
+   ASCII space, and trimming. Reject a normalized-empty query. Auto-select only one exact normalized
+   match; otherwise return at most 10 candidates ordered by normalized name then account ID.
+3. Traverse the verified player-specific match history newest-first with `limit`/`offset` in source
+   pages of at most 100 records, deduplicate IDs, and cheaply reject authoritative date mismatches.
+   Examine at most 500 history records and hydrate at most 200 unique `/matches/{match_id}` records
+   with concurrency 5 until the requested post-filter count is met, history ends, caller cancellation
+   or deadline stops work, or either fixed internal budget is reached.
 4. Apply an unconditional professional-provenance gate before caller filters: require the hydrated
    match to carry a positive league ID that resolves to authoritative league metadata, with no
    contradictory match/league evidence. A resolved professional player, parsed detail, or team IDs
@@ -213,9 +219,10 @@ draft-analysis response or coupling lineup lookup to its patch/tier/report pagin
    Missing optional context remains null unless an active filter requires it.
 5. Apply patch/date/tier filters only after the professional gate. Sort eligible maps by UTC start
    time then match ID newest-first and apply `match_count` last.
-   Return sparse record warnings and explicit examined/exhausted coverage. If a finite source cap or
-   partial upstream failure prevents exhaustive proof, return only established maps with a focused
-   truncation warning; never relabel that result as complete.
+   Return sparse record warnings and explicit examined/exhausted coverage. If either fixed safety
+   budget or a partial upstream failure prevents exhaustive proof, return only established maps with a focused
+   truncation warning naming the reached history-record or hydrated-detail budget; never relabel that
+   result as complete.
 
 ### Raw statistics and score projection
 
@@ -241,7 +248,9 @@ draft-analysis response or coupling lineup lookup to its patch/tier/report pagin
   only when another player is reliably credited.
 - `fantasy_scoring` emits one entry for each emblem with key, color, required inputs, and raw points.
   Any missing input gives null; Deaths and First Blood retain their defined floor/boolean behavior.
-  Quality, trait, and title modifiers are intentionally not applied to historical maps.
+  Historical maps contain observed evidence and pre-modifier scores only. Agents combine that
+  evidence with candidate quality, trait, title, and banner rules from the resource to calculate
+  counterfactual projections; candidate configurations are never modeled as historical map facts.
 
 ### Scoring resource
 
@@ -250,6 +259,8 @@ draft-analysis response or coupling lineup lookup to its patch/tier/report pagin
 - Store all 18 stable keys, colors, typed formula operations/parameters, human formula labels,
   input semantics, five multipliers, aggregation rules, trait/title records, evidence status,
   caveats, retrieval/effective dates, and direct source links.
+- Define modifier application order, scope, prerequisites, and evidence status sufficiently for an
+  agent to apply a candidate configuration retrospectively and label the result as a projection.
 - Complete the trait/title name inventory and classify every supportable rule claim during Phase 0,
   before `/speckit-tasks`. Implementation only transcribes this frozen evidence into installed JSON
   and adds schema, source-resolution, and scorer-parity validation; it does not discover rules.

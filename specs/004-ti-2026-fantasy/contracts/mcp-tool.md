@@ -28,8 +28,11 @@ typed structured JSON; timestamps use UTC ISO 8601 with `Z`.
 | `include` | string[]? | no | Distinct subset containing only `fantasy_scoring` |
 
 Exactly one player selector is required. A stable ID is checked against the professional catalog.
-A name auto-resolves only one normalized exact professional-name match; otherwise the response
-requires explicit selection from at most 10 candidates.
+Both a name query and catalog names are normalized with Unicode NFKC, Unicode case folding,
+replacement of each contiguous punctuation-or-whitespace run with one ASCII space, and trimming.
+A normalized-empty query is invalid. A name auto-resolves only one normalized exact
+professional-name match; otherwise the response requires explicit selection from at most 10
+candidates ordered by normalized professional name then account ID.
 
 Tier choices are `premium`, `professional`, `amateur`, and `all`. Named tiers may combine; `all` is
 exclusive. Tier 1 means `premium`. Omitting `version_pattern` selects the latest valid patch by
@@ -71,7 +74,9 @@ that only league-verified professional matches are eligible with no option to in
     "history_records_examined": 80,
     "details_requested": 24,
     "details_usable": 22,
-    "history_exhausted": false
+    "history_exhausted": false,
+    "truncated": false,
+    "terminal_reason": "requested_count_met"
   },
   "returned_count": 20,
   "matches": [
@@ -169,8 +174,11 @@ When requested, the root adds
 }
 ```
 
-Entries carry only calculation evidence. The resource defines formulas, tiers, modifiers, sources,
-and aggregation. Quality/trait/title effects are not applied without an explicit verified loadout.
+Entries carry only observed calculation evidence and pre-modifier raw points. The resource defines
+formulas, tiers, traits, titles, banner rules, sources, aggregation, and retrospective application
+semantics. An agent may combine those rules with a candidate configuration to calculate a
+counterfactual projection, but no quality, trait, title, banner, loadout, or projected post-modifier
+value is represented as historical match data.
 
 ## Resolution, empty, partial, and error outcomes
 
@@ -178,8 +186,10 @@ and aggregation. Quality/trait/title effects are not applied without an explicit
   reads. Blank/no-match/direct-nonprofessional inputs return structured identity errors.
 - A valid exhaustive request with no eligible maps succeeds with `matches=[]` and count zero.
 - Missing optional per-map data preserves the map and produces null plus a focused warning.
-- A bounded scan that cannot establish source exhaustion returns verified maps, `truncated=true`,
-  and a correction warning; it does not claim the list is exhaustive.
+- Player history is read in pages of at most 100 records. A request examines at most 500 history
+  records and hydrates at most 200 unique match details. Reaching either fixed internal limit returns
+  verified maps, examined/hydrated counts, `truncated=true`, a limit-specific terminal reason, and a
+  warning that more eligible maps may exist; it does not claim the list is exhaustive.
 - Invalid selectors, limits, dates, patterns, tier combinations, or include values fail before
   detail fan-out. `invalid_include` reports `valid_values:["fantasy_scoring"]`.
 - Safe retry exhaustion returns an actionable sanitized error. Cancellation propagates. A failed

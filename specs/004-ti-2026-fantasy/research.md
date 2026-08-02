@@ -34,11 +34,14 @@ and [match builder](https://github.com/odota/core/blob/2d67379fbba90b2fd015c6f0f
 
 ## Bounded post-filter collection
 
-**Decision**: Traverse player history newest-first in finite source pages, hydrate with concurrency
-5, and stop when the requested 1-100 eligible maps are established, history is exhausted, or a
-finite request/history budget is reached. Filter cheap authoritative values before hydration, but
-apply the public `match_count` only after completed/pro/player-row, patch, inclusive-date, and tier
-filters. Return coverage and a truncation warning whenever the scan cannot prove exhaustion.
+**Decision**: Traverse player history newest-first in pages of at most 100 records, examine at most
+500 history records, hydrate at most 200 unique match details with concurrency 5, and stop earlier
+when the requested 1-100 eligible maps are established, history is exhausted, caller cancellation
+occurs, or the caller deadline is reached. These internal limits are fixed rather than caller-
+configurable. Filter cheap authoritative values before hydration, but apply the public `match_count`
+only after completed/pro/player-row, patch, inclusive-date, and tier filters. Return examined and
+hydrated counts, a limit-specific terminal reason, and a truncation warning whenever the scan cannot
+prove exhaustion.
 
 **Rationale**: Fixed overfetch cannot guarantee the newest N post-filter maps. Unlimited scanning
 can violate caller deadlines and OpenDota operational limits. Explicit bounded coverage preserves
@@ -222,11 +225,13 @@ the optional group.
 
 ## Player identity resolution
 
-**Decision**: A positive account ID is authoritative but must resolve in `/proPlayers`. For names,
-reuse NFKD/casefold/punctuation/space normalization and auto-select only when exactly one normalized
-exact professional `name` matches. Exact collisions or substring matches return at most 10 stable
-candidates; blank/no-match inputs return structured errors. Current team data is candidate context,
-not historical truth.
+**Decision**: A positive account ID is authoritative but must resolve in `/proPlayers`. Normalize
+both name queries and catalog names with Unicode NFKC, Unicode case folding, replacement of each
+contiguous punctuation-or-whitespace run with one ASCII space, and leading/trailing-space removal.
+Reject queries that normalize to empty. Auto-select only when exactly one normalized exact
+professional `name` matches. Exact collisions or substring matches return at most 10 stable
+candidates ordered by normalized professional name then account ID; no-match inputs return
+structured errors. Current team data is candidate context, not historical truth.
 
 **Rationale**: Professional names change and can be reused. Stable IDs make the evidence request
 unambiguous and preserve the two-call disambiguation workflow.
@@ -266,6 +271,13 @@ stacking, and ordering claims during planning, before `/speckit-tasks`. Implemen
 serializing that evidence into the installed resource and enforcing schema/source/formula parity.
 Facts whose names are known but whose exact behavior is not verified are still collected now with
 null numeric values and `unknown` status; they are not left for implementation-time research.
+
+Historical matches supply observed raw evidence and pre-modifier scores only. An agent selects a
+candidate emblem/tier/trait/title/banner configuration and applies the resource rules
+retrospectively. The resulting post-modifier value is a counterfactual projection for that candidate,
+not an observed property of the match. The resource therefore records application order, scope,
+prerequisites, evidence status, and projection semantics; the match tool never carries a historical
+loadout.
 
 The planning inventory is five traits (`Fractal`, `Friendly`, `Vampiric`, `Unique`, `Benevolent`),
 eight prefixes (`Otherworldly`, `Emerald`, `Golden`, `Heroic`, `Cerulean`, `Royal`, `Crimson`,

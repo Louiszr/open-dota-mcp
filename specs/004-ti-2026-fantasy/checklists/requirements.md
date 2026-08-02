@@ -36,3 +36,5 @@
 - The specification selects one focused player-fantasy capability plus a versioned MCP scoring reference. It defines the lean core, one cohesive optional scoring group, exact unavailable-stat behavior, and a bounded alternative to pagination.
 - Traits and titles are required to carry verified effects, scope, order, provenance, and evidence status; unknown effects remain explicit rather than receiving guessed numeric modifiers.
 - References to MCP, professional-match sources, and public capability contracts describe the product boundary required by the feature and project constitution, not an implementation language or framework.
+- Validation iteration 3: exact player-name normalization, fixed history/detail budgets, the professional fixture denominator, and the 20-case/18-pass retrospective projection criterion are measurable and unambiguous.
+- Historical maps are limited to observed evidence and pre-modifier scores; candidate configurations are applied retrospectively and projected post-modifier results are explicitly counterfactual.

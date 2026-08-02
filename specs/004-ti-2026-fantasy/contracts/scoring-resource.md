@@ -27,6 +27,7 @@ resource must work through in-memory FastMCP and stdio clients.
   "traits": [],
   "titles": [],
   "aggregation": {},
+  "projection_semantics": {},
   "sources": [],
   "caveats": []
 }
@@ -90,6 +91,16 @@ The resource defines:
 4. Maps with null series IDs remain visible evidence but cannot be grouped or declared the best
    series without additional verified identity.
 
+### Retrospective projection semantics
+
+The resource defines historical raw statistics and pre-modifier scores as observed evidence.
+Emblems, quality tiers, traits, titles, and banner choices form a candidate configuration selected by
+the analyzing client; they are not properties of historical matches. Modifier records expose the
+application order, scope, prerequisites, stacking behavior, and evidence status required to apply a
+candidate configuration retrospectively. Any resulting post-modifier value is labeled as a
+counterfactual projection, and unknown required effects keep the affected projection uncertain
+rather than receiving a guessed value.
+
 ## Source records and versioning
 
 Each source has stable ID, title, URL, publisher/type, retrieval date, and optional note. Supplied
@@ -103,4 +114,6 @@ continues to expose the current supported edition.
 - Every formula input maps to a documented tool raw-stat key.
 - All source references resolve within the document and direct links are nonblank HTTPS URLs.
 - Unknown effects have null numeric values.
+- Projection semantics keep candidate configurations and post-modifier projections separate from
+  historical match evidence.
 - JSON is finite, deterministic, and readable without OpenDota or web access.
