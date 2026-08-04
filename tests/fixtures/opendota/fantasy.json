@@ -1,0 +1,47 @@
+{
+  "professional_maps": [
+    {"match_id":9001,"series_id":501,"patch":61,"tier":"premium"},
+    {"match_id":9002,"series_id":501,"patch":61,"tier":"premium"},
+    {"match_id":9003,"series_id":501,"patch":61,"tier":"professional"},
+    {"match_id":9004,"series_id":501,"patch":61,"tier":"amateur"},
+    {"match_id":9005,"series_id":501,"patch":61,"tier":"premium"},
+    {"match_id":9006,"series_id":501,"patch":61,"tier":"professional"},
+    {"match_id":9007,"series_id":501,"patch":61,"tier":"amateur"},
+    {"match_id":9008,"series_id":501,"patch":61,"tier":"premium"},
+    {"match_id":9009,"series_id":501,"patch":61,"tier":"professional"},
+    {"match_id":9010,"series_id":501,"patch":61,"tier":"amateur"},
+    {"match_id":9011,"series_id":502,"patch":60,"tier":"premium"},
+    {"match_id":9012,"series_id":502,"patch":60,"tier":"professional"},
+    {"match_id":9013,"series_id":502,"patch":60,"tier":"amateur"},
+    {"match_id":9014,"series_id":502,"patch":60,"tier":"premium"},
+    {"match_id":9015,"series_id":502,"patch":60,"tier":"professional"},
+    {"match_id":9016,"series_id":502,"patch":60,"tier":"amateur"},
+    {"match_id":9017,"series_id":502,"patch":60,"tier":"premium"},
+    {"match_id":9018,"series_id":502,"patch":60,"tier":"professional"},
+    {"match_id":9019,"series_id":502,"patch":60,"tier":"amateur"},
+    {"match_id":9020,"series_id":502,"patch":60,"tier":"premium"},
+    {"match_id":9021,"series_id":503,"patch":61,"tier":"professional"},
+    {"match_id":9022,"series_id":503,"patch":61,"tier":"amateur"},
+    {"match_id":9023,"series_id":503,"patch":61,"tier":"premium"},
+    {"match_id":9024,"series_id":503,"patch":61,"tier":"professional"},
+    {"match_id":9025,"series_id":503,"patch":61,"tier":"amateur"},
+    {"match_id":9026,"series_id":503,"patch":61,"tier":"premium"},
+    {"match_id":9027,"series_id":503,"patch":61,"tier":"professional"},
+    {"match_id":9028,"series_id":503,"patch":61,"tier":"amateur"},
+    {"match_id":9029,"series_id":503,"patch":61,"tier":"premium"},
+    {"match_id":9030,"series_id":null,"patch":61,"tier":"professional"}
+  ],
+  "special_records": {
+    "public": {"match_id":9101,"leagueid":0},
+    "malformed": {"match_id":9102,"players":"invalid"},
+    "unparsed": {"match_id":9103,"version":null},
+    "contradictory_provenance": {"match_id":9104,"leagueid":10,"summary_leagueid":11},
+    "null_zero_false": {"match_id":9105,"kills":0,"firstblood_claimed":false,"stuns":null},
+    "tormentor_attribution": {"match_id":9106,"type":"CHAT_MESSAGE_MINIBOSS_KILL","player_slot":0,"team":2},
+    "partial_failure": {"match_id":9107,"error":"upstream_timeout"}
+  },
+  "lineup_history": [
+    {"match_id":9201,"version":null},
+    {"match_id":9200,"version":21,"team_id":1,"account_ids":[101,102,103,104,105]}
+  ]
+}

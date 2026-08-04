@@ -158,6 +158,53 @@ class OpenDotaClient:
         """Fetch professional player identities."""
         return await self._get_list("/proPlayers", operation="get_pro_players")
 
+    async def get_player_matches(
+        self, account_id: int, *, limit: int = 100, offset: int = 0
+    ) -> JsonList:
+        """Fetch one bounded page of a player's match history.
+
+        Args:
+            account_id: Positive Steam32 account identifier.
+            limit: Upstream page size from 1 through 100.
+            offset: Nonnegative history offset.
+
+        Returns:
+            A list of compact player-match records.
+
+        Raises:
+            ValueError: If a selector or page bound is invalid.
+        """
+        if account_id <= 0 or not 1 <= limit <= 100 or offset < 0:
+            raise ValueError(
+                "player history requires a positive account_id, limit 1-100, and offset >= 0"
+            )
+        return await self._get_list(
+            f"/players/{account_id}/matches",
+            operation="get_player_matches",
+            path_inputs={"account_id": account_id},
+            params={"limit": limit, "offset": offset},
+        )
+
+    async def get_team_players(self, team_id: int) -> JsonList:
+        """Fetch historical team players including explicit current-member flags.
+
+        Args:
+            team_id: Positive stable professional-team identifier.
+
+        Returns:
+            Team-player records from OpenDota.
+
+        Raises:
+            ValueError: If ``team_id`` is not positive.
+        """
+        if team_id <= 0:
+            raise ValueError("team_id must be positive")
+        return await self._get_list(
+            f"/teams/{team_id}/players",
+            operation="get_team_players",
+            path_inputs={"team_id": team_id},
+        )
+
     async def _get_object(
         self,
         path: str,

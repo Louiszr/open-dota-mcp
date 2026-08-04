@@ -8,3 +8,5 @@ def test_freshness_policy_is_explicit_and_boolean_safe() -> None:
     for value in [None, True, False, 0, -1, "1"]:
         assert classify_freshness("get_match", {"version": value}).ttl_seconds == 900
     assert classify_freshness("future_operation", {}).category == "short"
+    assert classify_freshness("get_player_matches", []).ttl_seconds == 900
+    assert classify_freshness("get_team_players", []).ttl_seconds == 900

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections.abc import AsyncIterator, Awaitable, Callable
 from datetime import UTC, datetime
 from pathlib import Path
@@ -10,6 +11,15 @@ import pytest
 from fastmcp import Client
 
 from open_dota_mcp.cache.store import CacheStore
+
+
+@pytest.fixture
+def fantasy_fixture() -> dict[str, Any]:
+    """Load the explicit TI 2026 fantasy fixture document."""
+    path = Path(__file__).parent / "fixtures" / "opendota" / "fantasy.json"
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    assert len(payload["professional_maps"]) == 30
+    return payload
 
 
 class MutableClock:

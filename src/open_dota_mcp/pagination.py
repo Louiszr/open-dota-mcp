@@ -59,7 +59,7 @@ class SnapshotRegistry:
         self.ttl_seconds = ttl_seconds
         self.capacity = capacity
         self._clock = clock
-        self._token_factory = token_factory or (lambda: secrets.token_urlsafe(32))
+        self._token_factory = token_factory or (lambda: f"p_{secrets.token_urlsafe(32)}")
         self._snapshots: OrderedDict[str, _Snapshot[Any]] = OrderedDict()
         self._tokens: dict[str, str] = {}
         self._stale_tokens: set[str] = set()

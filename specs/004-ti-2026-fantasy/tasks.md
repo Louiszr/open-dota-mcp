@@ -18,7 +18,7 @@
 
 **Purpose**: Establish explicit deterministic data for all planned offline tests.
 
-- [ ] T001 Create an explicit fixture set containing at least 30 eligible professional maps across at least three series, two patches, and all three tournament tiers, plus separate public, malformed, unparsed, contradictory-provenance, lineup-history, null/zero, Tormentor-attribution, and partial-failure records, and assert the professional-map denominator before outcome tests, in tests/fixtures/opendota/fantasy.json and tests/conftest.py
+- [X] T001 Create an explicit fixture set containing at least 30 eligible professional maps across at least three series, two patches, and all three tournament tiers, plus separate public, malformed, unparsed, contradictory-provenance, lineup-history, null/zero, Tormentor-attribution, and partial-failure records, and assert the professional-map denominator before outcome tests, in tests/fixtures/opendota/fantasy.json and tests/conftest.py
 
 ---
 
@@ -28,11 +28,11 @@
 
 **Critical**: Complete this phase before starting any user-story implementation.
 
-- [ ] T002 [P] Add deterministic client tests for player-match history and team-player reads, query forwarding, cache use, safe retry classification, successful recovery, non-retryable failures, bounded increasing backoff with jitter, valid/invalid/over-budget `Retry-After`, cancellation, and retry exhaustion without real delays in tests/unit/test_opendota_client.py
-- [ ] T003 [P] Add cache identity, allowlist, and freshness tests for player history and team-player operations, including secret exclusion, in tests/unit/test_cache_identity.py and tests/unit/test_cache_policy.py
-- [ ] T004 [P] Implement typed player-match history and team-player safe GET operations using the existing finite retry/deadline boundary in src/open_dota_mcp/clients/opendota.py
-- [ ] T005 [P] Add player-history and team-player operation identities and allowlisting without key material in src/open_dota_mcp/cache/identity.py and src/open_dota_mcp/cache/store.py
-- [ ] T006 [P] Add freshness classifications for player-history and team-player responses in src/open_dota_mcp/cache/policy.py
+- [X] T002 [P] Add deterministic client tests for player-match history and team-player reads, query forwarding, cache use, safe retry classification, successful recovery, non-retryable failures, bounded increasing backoff with jitter, valid/invalid/over-budget `Retry-After`, cancellation, and retry exhaustion without real delays in tests/unit/test_opendota_client.py
+- [X] T003 [P] Add cache identity, allowlist, and freshness tests for player history and team-player operations, including secret exclusion, in tests/unit/test_cache_identity.py and tests/unit/test_cache_policy.py
+- [X] T004 [P] Implement typed player-match history and team-player safe GET operations using the existing finite retry/deadline boundary in src/open_dota_mcp/clients/opendota.py
+- [X] T005 [P] Add player-history and team-player operation identities and allowlisting without key material in src/open_dota_mcp/cache/identity.py and src/open_dota_mcp/cache/store.py
+- [X] T006 [P] Add freshness classifications for player-history and team-player responses in src/open_dota_mcp/cache/policy.py
 
 **Checkpoint**: Focused history and membership reads are deterministic, cached, retry-safe, and ready for story work.
 
@@ -46,21 +46,21 @@
 
 ### Tests for User Story 1
 
-- [ ] T007 [P] [US1] Add public request/response model and canonical 18-formula tests covering validation, serialization, numeric floors, fractional values, nonfinite rejection, and null/zero/false distinctions in tests/unit/test_fantasy_models.py
-- [ ] T008 [P] [US1] Add risk-based mapping tests for compact context, team-relative result/score, direct fields, Smoke uses, participation, First Blood, unavailable proxy rejection, and unique team-consistent Tormentor event attribution in tests/unit/test_fantasy_mapping.py
-- [ ] T009 [P] [US1] Add professional-player ID/name resolution tests for Unicode NFKC normalization, case folding, punctuation/whitespace-run normalization, normalized-empty input, exact collisions, deterministic name/account-ID ordering, ten-candidate bounds, no-match input, and no detail reads before selection in tests/unit/test_identity_resolution.py
-- [ ] T010 [P] [US1] Add MCP contract tests for the slim default, `fantasy_scoring` opt-in, invalid group choices, 1/20/100 count bounds, focused filters, latest-patch default, no public-match bypass, professional-provenance rejection before all filters, exact 500-history-record and 200-hydrated-detail boundaries, early completion, exhaustion, limit-specific truncation metadata, partial failures, retry exhaustion, and tool description/annotations in tests/contract/test_fantasy_tool.py
-- [ ] T011 [P] [US1] Add an offline end-to-end player journey covering ID and two-call name resolution, newest-first post-filter collection, successful empty results, scoring opt-in, and sanitized failures in tests/integration/test_fantasy_journey.py
+- [X] T007 [P] [US1] Add public request/response model and canonical 18-formula tests covering validation, serialization, numeric floors, fractional values, nonfinite rejection, and null/zero/false distinctions in tests/unit/test_fantasy_models.py
+- [X] T008 [P] [US1] Add risk-based mapping tests for compact context, team-relative result/score, direct fields, Smoke uses, participation, First Blood, unavailable proxy rejection, and unique team-consistent Tormentor event attribution in tests/unit/test_fantasy_mapping.py
+- [X] T009 [P] [US1] Add professional-player ID/name resolution tests for Unicode NFKC normalization, case folding, punctuation/whitespace-run normalization, normalized-empty input, exact collisions, deterministic name/account-ID ordering, ten-candidate bounds, no-match input, and no detail reads before selection in tests/unit/test_identity_resolution.py
+- [X] T010 [P] [US1] Add MCP contract tests for the slim default, `fantasy_scoring` opt-in, invalid group choices, 1/20/100 count bounds, focused filters, latest-patch default, no public-match bypass, professional-provenance rejection before all filters, exact 500-history-record and 200-hydrated-detail boundaries, early completion, exhaustion, limit-specific truncation metadata, partial failures, retry exhaustion, and tool description/annotations in tests/contract/test_fantasy_tool.py
+- [X] T011 [P] [US1] Add an offline end-to-end player journey covering ID and two-call name resolution, newest-first post-filter collection, successful empty results, scoring opt-in, and sanitized failures in tests/integration/test_fantasy_journey.py
 
 ### Implementation for User Story 1
 
-- [ ] T012 [US1] Implement fully typed and Google-documented fantasy request, identity, filter, coverage, context, raw-stat, score, warning, and response models with strict input bounds, 500-history/200-detail coverage bounds, limit-specific terminal reasons, and include validation in src/open_dota_mcp/models/fantasy.py
-- [ ] T013 [US1] Define typed canonical keys, colors, raw inputs, four formula operations, parameters, safe numeric evaluation, and canonical ordering for all 18 emblems in src/open_dota_mcp/fantasy_rules.py
-- [ ] T014 [US1] Implement professional-player resolution by positive account ID or exact Unicode NFKC/casefold/punctuation-and-whitespace normalized name, rejecting normalized-empty queries and ordering bounded candidates by normalized name then account ID, in src/open_dota_mcp/services/identity.py
-- [ ] T015 [US1] Implement player-relative context and raw-stat mapping with explicit null/zero/false semantics, series non-inference, unavailable-stat warning deduplication, and Tormentor attribution in src/open_dota_mcp/services/fantasy.py
-- [ ] T016 [US1] Implement newest-first traversal in pages of at most 100 records with fixed 500-history-record and 200-unique-detail budgets, detail deduplication and concurrency of five, affirmative league-provenance gating before caller filters, completed/player-row validation, patch/date/tier filtering, post-filter count, partial-record handling, examined/hydrated coverage, and limit-specific truncation in src/open_dota_mcp/services/fantasy.py
-- [ ] T017 [US1] Implement the additive `fantasy_scoring` projection with exactly 18 pre-modifier entries, nullable raw points, and reference URI while exposing no historical quality, trait, title, banner, or loadout fields in src/open_dota_mcp/services/fantasy.py
-- [ ] T018 [US1] Register the read-only idempotent `get_pro_player_fantasy` tool with the complete fixed traversal budgets, bounded-response, selector, filter, unavailable-stat, group, professional-only, truncation, and error description in src/open_dota_mcp/server.py
+- [X] T012 [US1] Implement fully typed and Google-documented fantasy request, identity, filter, coverage, context, raw-stat, score, warning, and response models with strict input bounds, 500-history/200-detail coverage bounds, limit-specific terminal reasons, and include validation in src/open_dota_mcp/models/fantasy.py
+- [X] T013 [US1] Define typed canonical keys, colors, raw inputs, four formula operations, parameters, safe numeric evaluation, and canonical ordering for all 18 emblems in src/open_dota_mcp/fantasy_rules.py
+- [X] T014 [US1] Implement professional-player resolution by positive account ID or exact Unicode NFKC/casefold/punctuation-and-whitespace normalized name, rejecting normalized-empty queries and ordering bounded candidates by normalized name then account ID, in src/open_dota_mcp/services/identity.py
+- [X] T015 [US1] Implement player-relative context and raw-stat mapping with explicit null/zero/false semantics, series non-inference, unavailable-stat warning deduplication, and Tormentor attribution in src/open_dota_mcp/services/fantasy.py
+- [X] T016 [US1] Implement newest-first traversal in pages of at most 100 records with fixed 500-history-record and 200-unique-detail budgets, detail deduplication and concurrency of five, affirmative league-provenance gating before caller filters, completed/player-row validation, patch/date/tier filtering, post-filter count, partial-record handling, examined/hydrated coverage, and limit-specific truncation in src/open_dota_mcp/services/fantasy.py
+- [X] T017 [US1] Implement the additive `fantasy_scoring` projection with exactly 18 pre-modifier entries, nullable raw points, and reference URI while exposing no historical quality, trait, title, banner, or loadout fields in src/open_dota_mcp/services/fantasy.py
+- [X] T018 [US1] Register the read-only idempotent `get_pro_player_fantasy` tool with the complete fixed traversal budgets, bounded-response, selector, filter, unavailable-stat, group, professional-only, truncation, and error description in src/open_dota_mcp/server.py
 
 **Checkpoint**: US1 independently returns analysis-ready professional-map evidence and optional pre-modifier scores without admitting public or unverified matches.
 
@@ -74,15 +74,15 @@
 
 ### Tests for User Story 4
 
-- [ ] T019 [P] [US4] Add public roster model and risk-based mapping tests for selector validation, strict current-member booleans, requested-team side verification, exact five-player sets, latest valid ten-minute samples, clean 2-1-2 inference, tied/missing/malformed evidence, deterministic ordering, and coverage bounds in tests/unit/test_roster_mapping.py
-- [ ] T020 [P] [US4] Add MCP contract tests for ID/name resolution, ten-candidate ambiguity, fixed five-record scan, exact membership equality, `current_roster_unavailable`, immediate `lineup_mismatch`, `lineup_unavailable`, retry/partial failures, slim bounded output, and tool description/annotations in tests/contract/test_roster_tool.py
-- [ ] T021 [P] [US4] Add an offline team-to-player-to-fantasy journey proving five fantasy-ready IDs, no older scan after mismatch, and no unsupported positions in tests/integration/test_roster_to_fantasy.py
+- [X] T019 [P] [US4] Add public roster model and risk-based mapping tests for selector validation, strict current-member booleans, requested-team side verification, exact five-player sets, latest valid ten-minute samples, clean 2-1-2 inference, tied/missing/malformed evidence, deterministic ordering, and coverage bounds in tests/unit/test_roster_mapping.py
+- [X] T020 [P] [US4] Add MCP contract tests for ID/name resolution, ten-candidate ambiguity, fixed five-record scan, exact membership equality, `current_roster_unavailable`, immediate `lineup_mismatch`, `lineup_unavailable`, retry/partial failures, slim bounded output, and tool description/annotations in tests/contract/test_roster_tool.py
+- [X] T021 [P] [US4] Add an offline team-to-player-to-fantasy journey proving five fantasy-ready IDs, no older scan after mismatch, and no unsupported positions in tests/integration/test_roster_to_fantasy.py
 
 ### Implementation for User Story 4
 
-- [ ] T022 [US4] Implement fully typed and Google-documented roster request, team/source/coverage, candidate, lineup-player, warning, and structured outcome models in src/open_dota_mcp/models/roster.py
-- [ ] T023 [US4] Implement team resolution reuse, concurrent current-member/history loading, newest-first sequential five-record scan, verified team-side extraction, immediate set-mismatch failure, professional-name enrichment, conservative position inference, and sparse warnings in src/open_dota_mcp/services/roster.py
-- [ ] T024 [US4] Register the read-only idempotent `get_pro_team_roster` tool with fixed-scan, current-member cross-check, latest-observed provenance, nullable position, bounded-response, and error documentation in src/open_dota_mcp/server.py
+- [X] T022 [US4] Implement fully typed and Google-documented roster request, team/source/coverage, candidate, lineup-player, warning, and structured outcome models in src/open_dota_mcp/models/roster.py
+- [X] T023 [US4] Implement team resolution reuse, concurrent current-member/history loading, newest-first sequential five-record scan, verified team-side extraction, immediate set-mismatch failure, professional-name enrichment, conservative position inference, and sparse warnings in src/open_dota_mcp/services/roster.py
+- [X] T024 [US4] Register the read-only idempotent `get_pro_team_roster` tool with fixed-scan, current-member cross-check, latest-observed provenance, nullable position, bounded-response, and error documentation in src/open_dota_mcp/server.py
 
 **Checkpoint**: US4 independently returns exactly five safe player IDs or a bounded cannot-infer outcome and never calls the result an authoritative current roster.
 
@@ -96,14 +96,14 @@
 
 ### Tests for User Story 2
 
-- [ ] T025 [P] [US2] Add schema, canonical formula/input/color parity, source resolution, edition metadata, five-tier multiplier, retrospective modifier order/scope/prerequisite rules, frozen trait/title inventory, unknown-numeric rejection, projection labeling, and aggregation invariant tests in tests/unit/test_fantasy_models.py
-- [ ] T026 [P] [US2] Add in-memory resource listing/reading tests for stable URI, name, JSON MIME type, annotations, retrospective projection semantics, installed-package loading outside cwd, deterministic content, and zero network requests in tests/contract/test_fantasy_tool.py
+- [X] T025 [P] [US2] Add schema, canonical formula/input/color parity, source resolution, edition metadata, five-tier multiplier, retrospective modifier order/scope/prerequisite rules, frozen trait/title inventory, unknown-numeric rejection, projection labeling, and aggregation invariant tests in tests/unit/test_fantasy_models.py
+- [X] T026 [P] [US2] Add in-memory resource listing/reading tests for stable URI, name, JSON MIME type, annotations, retrospective projection semantics, installed-package loading outside cwd, deterministic content, and zero network requests in tests/contract/test_fantasy_tool.py
 
 ### Implementation for User Story 2
 
-- [ ] T027 [US2] Create the installed `ti-2026-v1` scoring document with 18 emblems, five quality tiers, five traits, eight prefixes, eight suffixes, retrospective application order/scope/prerequisites, counterfactual-projection semantics, aggregation, evidence statuses, direct sources, dates, and caveats in src/open_dota_mcp/resources/ti_2026_fantasy.json
-- [ ] T028 [US2] Implement typed scoring-reference validation for formula parity, known operation/input mappings, internal source IDs, HTTPS links, inventory completeness, retrospective projection semantics, and null numeric effects for unknown facts in src/open_dota_mcp/fantasy_rules.py
-- [ ] T029 [US2] Add package-relative `importlib.resources` loading and register `opendota://fantasy/ti-2026/scoring` as a read-only idempotent `application/json` resource in src/open_dota_mcp/resources/__init__.py and src/open_dota_mcp/server.py
+- [X] T027 [US2] Create the installed `ti-2026-v1` scoring document with 18 emblems, five quality tiers, five traits, eight prefixes, eight suffixes, retrospective application order/scope/prerequisites, counterfactual-projection semantics, aggregation, evidence statuses, direct sources, dates, and caveats in src/open_dota_mcp/resources/ti_2026_fantasy.json
+- [X] T028 [US2] Implement typed scoring-reference validation for formula parity, known operation/input mappings, internal source IDs, HTTPS links, inventory completeness, retrospective projection semantics, and null numeric effects for unknown facts in src/open_dota_mcp/fantasy_rules.py
+- [X] T029 [US2] Add package-relative `importlib.resources` loading and register `opendota://fantasy/ti-2026/scoring` as a read-only idempotent `application/json` resource in src/open_dota_mcp/resources/__init__.py and src/open_dota_mcp/server.py
 
 **Checkpoint**: US2 independently supplies complete, versioned scoring context without a live rules search or network request.
 
@@ -117,12 +117,12 @@
 
 ### Tests for User Story 3
 
-- [ ] T030 [P] [US3] Add a fixed parameterized corpus of 20 offline agent-evaluation cases covering at least two players, two candidate emblem configurations, known/null series IDs, unavailable statistics, and known/unknown modifiers; require at least 18 expected comparisons with correct evidence selection, raw and projected scores, two-best-maps/best-confirmed-series aggregation, uncertainty, and no historical-loadout claims in tests/integration/test_fantasy_journey.py
+- [X] T030 [P] [US3] Add a fixed parameterized corpus of 20 offline agent-evaluation cases covering at least two players, two candidate emblem configurations, known/null series IDs, unavailable statistics, and known/unknown modifiers; require at least 18 expected comparisons with correct evidence selection, raw and projected scores, two-best-maps/best-confirmed-series aggregation, uncertainty, and no historical-loadout claims in tests/integration/test_fantasy_journey.py
 
 ### Implementation for User Story 3
 
-- [ ] T031 [US3] Finalize trustworthy upstream-only series preservation and enforce the separation between observed historical evidence/pre-modifier scores and agent-selected counterfactual configurations in src/open_dota_mcp/services/fantasy.py
-- [ ] T032 [P] [US3] Document retrospective candidate-configuration projection, two-best-maps/best-confirmed-series analysis, null-series limitation, paired-banner contribution, pre-modifier evidence boundary, projection labeling, and no-optimizer scope in README.md
+- [X] T031 [US3] Finalize trustworthy upstream-only series preservation and enforce the separation between observed historical evidence/pre-modifier scores and agent-selected counterfactual configurations in src/open_dota_mcp/services/fantasy.py
+- [X] T032 [P] [US3] Document retrospective candidate-configuration projection, two-best-maps/best-confirmed-series analysis, null-series limitation, paired-banner contribution, pre-modifier evidence boundary, projection labeling, and no-optimizer scope in README.md
 
 **Checkpoint**: US3 can be performed entirely from the two MCP capabilities while uncertainty remains explicit.
 
@@ -132,11 +132,13 @@
 
 **Purpose**: Complete shared fixtures, user documentation, protocol validation, and the independent release gate.
 
-- [ ] T033 [P] Consolidate reusable fantasy, roster, resource, clock, no-sleep retry, and no-network fixtures without hiding expected values in tests/conftest.py
-- [ ] T034 [P] Extend stdio discovery and invocation coverage to six tools and one resource while asserting protocol-only stdout and actionable structured errors in tests/integration/test_stdio.py
-- [ ] T035 [P] Document both new tools, the scoring resource, slim defaults, focused selectors/filters, `fantasy_scoring`, fixed 500-history/200-detail and post-filter bounds, limit-specific truncation metadata, terminal exhaustion, retrospective projection semantics, professional-only eligibility, and optional API-key secrecy in README.md
-- [ ] T036 Execute every offline validation journey including the 20-case/18-pass retrospective evaluation corpus and correct any command, expected behavior, or bounded-response documentation mismatch in specs/004-ti-2026-fantasy/quickstart.md
-- [ ] T037 Have a sub-agent that performed no implementation audit all required public-surface and risk-based tests, then run `uv run ruff check .`, `uv run ruff format --check .`, and `uv run pytest`, requiring it to report all gates passing before completion in specs/004-ti-2026-fantasy/tasks.md
+- [X] T033 [P] Consolidate reusable fantasy, roster, resource, clock, no-sleep retry, and no-network fixtures without hiding expected values in tests/conftest.py
+- [X] T034 [P] Extend stdio discovery and invocation coverage to six tools and one resource while asserting protocol-only stdout and actionable structured errors in tests/integration/test_stdio.py
+- [X] T035 [P] Document both new tools, the scoring resource, slim defaults, focused selectors/filters, `fantasy_scoring`, fixed 500-history/200-detail and post-filter bounds, limit-specific truncation metadata, terminal exhaustion, retrospective projection semantics, professional-only eligibility, and optional API-key secrecy in README.md
+- [X] T036 Execute every offline validation journey including the 20-case/18-pass retrospective evaluation corpus and correct any command, expected behavior, or bounded-response documentation mismatch in specs/004-ti-2026-fantasy/quickstart.md
+- [X] T037 Have a sub-agent that performed no implementation audit all required public-surface and risk-based tests, then run `uv run ruff check .`, `uv run ruff format --check .`, and `uv run pytest`, requiring it to report all gates passing before completion in specs/004-ti-2026-fantasy/tasks.md
+- [X] T038 Add regression coverage and allow an explicit `version_pattern` to operate with an undated OpenDota patch catalog in tests/contract/test_fantasy_tool.py and src/open_dota_mcp/services/fantasy.py
+- [X] T039 Add regression coverage for OpenDota's nullable integer First Blood flags and map them to reliable true/false fantasy evidence in tests/unit/test_fantasy_mapping.py, tests/contract/test_fantasy_tool.py, and src/open_dota_mcp/services/fantasy.py
 
 ---
 

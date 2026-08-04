@@ -5,9 +5,36 @@ import pytest
 from open_dota_mcp.services.identity import (
     load_team_catalog,
     normalize_identity,
+    normalize_player_name,
+    professional_by_account_id,
     resolve_league,
+    resolve_professional_player,
     resolve_team,
 )
+
+
+def test_professional_player_normalization_exact_collisions_and_order() -> None:
+    players = [
+        {"account_id": 12, "name": "Ｔｅｓｔ--Player"},
+        {"account_id": 11, "name": "Test Player"},
+        {"account_id": 20, "name": "Test Pilot"},
+    ]
+    assert normalize_player_name("  TEST…PLAYER ") == "test player"
+    collision = resolve_professional_player("test player", players)
+    assert collision.selected is None
+    assert [item["account_id"] for item in collision.candidates] == [11, 12]
+    unique = resolve_professional_player("test pilot", players)
+    assert unique.selected == players[2]
+    assert resolve_professional_player("!!!", players).query == ""
+    assert professional_by_account_id(20, players) == players[2]
+
+
+def test_professional_player_candidates_are_bounded_to_ten() -> None:
+    players = [{"account_id": value, "name": f"Same {value:02d}"} for value in range(1, 20)]
+    result = resolve_professional_player("same", players)
+    assert result.selected is None
+    assert len(result.candidates) == 10
+    assert [item["account_id"] for item in result.candidates] == list(range(1, 11))
 
 
 def test_normalization_handles_unicode_case_and_punctuation() -> None:

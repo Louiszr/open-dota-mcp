@@ -35,7 +35,10 @@ async def test_every_documented_get_method_and_unknown_fields_are_permissive() -
         assert await client.get_team(2) == {"id": 1, "unknown": {"future": True}}
         assert await client.get_team_matches(2) == []
         assert await client.get_pro_players() == []
+        assert await client.get_player_matches(7, limit=20, offset=40) == []
+        assert await client.get_team_players(2) == []
     assert any("/teams?page=4" in url for url in seen)
+    assert any("/players/7/matches?limit=20&offset=40" in url for url in seen)
 
 
 @pytest.mark.asyncio
@@ -70,12 +73,14 @@ async def test_all_operations_cache_before_shared_shape_validation(tmp_path) -> 
         await client.get_team(2)
         await client.get_team_matches(2)
         await client.get_pro_players()
+        await client.get_player_matches(7, limit=20, offset=40)
+        await client.get_team_players(2)
         first_calls = calls
         await client.get_match(1)
         await client.get_teams_page(4)
-    assert calls == first_calls == 9
+    assert calls == first_calls == 11
     entries = store.entries(limit=20).entries
-    assert len(entries) == 9
+    assert len(entries) == 11
     assert {
         entry.category for entry in entries if entry.operation in {"get_heroes", "get_patches"}
     } == {"long"}
@@ -84,6 +89,19 @@ async def test_all_operations_cache_before_shared_shape_validation(tmp_path) -> 
         for entry in entries
         if entry.operation not in {"get_heroes", "get_patches"}
     )
+
+
+@pytest.mark.asyncio
+async def test_new_operation_argument_validation() -> None:
+    async with OpenDotaClient(
+        transport=httpx.MockTransport(lambda _request: httpx.Response(200, json=[]))
+    ) as client:
+        with pytest.raises(ValueError):
+            await client.get_player_matches(0)
+        with pytest.raises(ValueError):
+            await client.get_player_matches(1, limit=101)
+        with pytest.raises(ValueError):
+            await client.get_team_players(0)
 
 
 @pytest.mark.asyncio

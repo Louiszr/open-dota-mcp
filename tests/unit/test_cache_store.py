@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from open_dota_mcp.cache import store as store_module
 from open_dota_mcp.cache.identity import build_identity
 from open_dota_mcp.cache.policy import Freshness
 from open_dota_mcp.cache.store import CacheStore
@@ -59,6 +60,22 @@ def test_store_fixed_expiry_integrity_counters_entries_and_clear(tmp_path) -> No
     assert store.info().hits == 0
     assert os.stat(store.cache_dir).st_mode & 0o777 == 0o700
     assert os.stat(store.path).st_mode & 0o777 == 0o600
+
+
+def test_entry_cursor_never_begins_with_an_argparse_option_prefix(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(store_module.secrets, "token_urlsafe", lambda _size: "-unsafe")
+    store = CacheStore(tmp_path / "cache")
+    for match_id in (1, 2):
+        identity = build_identity(
+            source="https://api.opendota.com/api",
+            operation="get_match",
+            path_inputs={"match_id": match_id},
+        )
+        assert store.store(identity, {"match_id": match_id}, Freshness("short", 900))
+    cursor = store.entries(limit=1).next_cursor
+    assert cursor == "c_-unsafe"
+    assert not cursor.startswith("-")
+    assert store.entries(limit=1, cursor=cursor).returned_count == 1
 
 
 def test_corrupt_payload_is_never_returned(tmp_path) -> None:

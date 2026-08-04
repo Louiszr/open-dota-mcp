@@ -30,15 +30,37 @@ def offline_opendota() -> tuple[str, dict[str, int]]:
                 payload = [{"id": 61, "name": "7.41", "date": 1782864000}]
             elif path == "/api/teams/1/matches":
                 payload = [
-                    {"match_id": 2, "start_time": 1784779201, "duration": 1200},
-                    {"match_id": 1, "start_time": 1784779200, "duration": 1200},
+                    {
+                        "match_id": 2,
+                        "start_time": 1784779201,
+                        "duration": 1200,
+                        "radiant_team_id": 1,
+                        "dire_team_id": 2,
+                        "radiant_team_name": "Radiant Pro",
+                        "dire_team_name": "Dire Pro",
+                        "radiant_win": True,
+                    },
+                    {
+                        "match_id": 1,
+                        "start_time": 1784779200,
+                        "duration": 1200,
+                        "radiant_team_id": 1,
+                        "dire_team_id": 2,
+                        "radiant_team_name": "Radiant Pro",
+                        "dire_team_name": "Dire Pro",
+                        "radiant_win": True,
+                    },
                 ]
+            elif path == "/api/teams/1/players" or path == "/api/players/101/matches":
+                payload = []
             elif path == "/api/leagues":
                 payload = [{"leagueid": 10, "name": "Premier Cup", "tier": "premium"}]
+            elif path == "/api/leagues/10/matches":
+                payload = [{"match_id": 1, "start_time": 1784779200, "leagueid": 10}]
             elif path == "/api/heroes":
                 payload = []
             elif path == "/api/proPlayers":
-                payload = []
+                payload = [{"account_id": 101, "name": "Example"}]
             elif path in {"/api/matches/1", "/api/matches/2"}:
                 match_id = int(path.rsplit("/", 1)[1])
                 payload = {
@@ -112,9 +134,22 @@ async def test_stdio_initialization_listing_invocation_and_clean_shutdown(
     )
     async with Client(transport) as session:
         tools = await session.list_tools()
-        assert len(tools) == 4
+        assert len(tools) == 6
+        resources = await session.list_resources()
+        assert len(resources) == 1
+        scoring = await session.read_resource("opendota://fantasy/ti-2026/scoring")
+        scoring_text = scoring[0].text if isinstance(scoring, list) else scoring.text
+        assert json.loads(scoring_text)["edition"] == "ti-2026-v1"
         result = await session.call_tool("get_pro_match_drafts", {"match_ids": []})
         assert result.structured_content["error"]["code"] == "invalid_match_ids"
+        tournament = await session.call_tool("list_pro_tournament_matches", {"league_id": 10})
+        assert tournament.structured_content["matches"][0]["match_id"] == 1
+        team = await session.call_tool("list_pro_team_matches", {"team_id": 1})
+        assert team.structured_content["matches"][0]["match_id"] == 2
+        fantasy = await session.call_tool("get_pro_player_fantasy", {"account_id": 101})
+        assert fantasy.structured_content["matches"] == []
+        roster = await session.call_tool("get_pro_team_roster", {"team_id": 1})
+        assert roster.structured_content["error"]["code"] == "current_roster_unavailable"
         first = await session.call_tool("analyze_pro_team_drafts", {"team_id": 1, "page_size": 1})
         cursor = first.structured_content["next_cursor"]
         calls = offline_opendota[1]["calls"]
