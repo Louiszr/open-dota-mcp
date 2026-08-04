@@ -151,11 +151,32 @@ def test_reference_exact_modifier_evidence_and_aggregation_rules() -> None:
     effects = {item["name"]: item for item in [*document["traits"], *document["titles"]]}
     assert effects["Unique"]["numeric_effect"] == 0.3
     assert effects["Unique"]["status"] == "community_verified"
-    assert effects["the Underdog"]["numeric_effect"] == 0.06
+    expected_title_effects = {
+        "Crimson": 0.06,
+        "Cerulean": 0.11,
+        "Emerald": 0.06,
+        "Royal": 0.10,
+        "Golden": 0.08,
+        "Elemental": 0.08,
+        "Otherworldly": 0.07,
+        "Heroic": 0.09,
+        "the Tormented": 0.23,
+        "the Flayed Twins Acolyte": 0.09,
+        "the Patient": 0.23,
+        "the Underdog": 0.06,
+        "the Decisive": 0.24,
+        "the Clutch": 0.16,
+        "the Lucky": 0.21,
+        "the Cruel": 0.13,
+    }
+    assert {
+        item["name"]: item["numeric_effect"] for item in document["titles"]
+    } == expected_title_effects
+    assert all(item["status"] == "official" for item in document["titles"])
     assert all(
         item["numeric_effect"] is None
         for name, item in effects.items()
-        if name not in {"Unique", "the Underdog"}
+        if name not in {"Unique", *expected_title_effects}
     )
     assert "two highest-scoring maps" in document["aggregation"]["series_map_selection"]
     assert "greatest confirmed-series sum" in document["aggregation"]["stage_selection"]
