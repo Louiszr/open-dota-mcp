@@ -35,7 +35,7 @@ and [match builder](https://github.com/odota/core/blob/2d67379fbba90b2fd015c6f0f
 ## Bounded post-filter collection
 
 **Decision**: Traverse player history newest-first in pages of at most 100 records, examine at most
-500 history records, hydrate at most 200 unique match details with concurrency 5, and stop earlier
+500 history records, hydrate at most 200 unique match details with concurrency 2, and stop earlier
 when the requested 1-100 eligible maps are established, history is exhausted, caller cancellation
 occurs, or the caller deadline is reached. These internal limits are fixed rather than caller-
 configurable. Filter cheap authoritative values before hydration, but apply the public `match_count`
@@ -304,7 +304,7 @@ and [TI 2026 community guide](https://www.reddit.com/r/DotA2/comments/1vble84/fa
 **Decision**: Preserve public no-key access and optional secret API key. Reuse the existing safe-GET
 policy for eligible transport/408/429/5xx failures, honoring proxy `Retry-After`, finite jittered
 backoff, caller cancellation/deadline, and actionable exhaustion. Cache/deduplicate catalogs,
-history, and match details; limit hydration concurrency to 5.
+history, and match details; limit hydration concurrency to 2.
 
 **Rationale**: Current OpenDota defaults are 60 requests/minute and 3000/day without a key and 300
 requests/minute with a key, but deployments can vary and current core does not send `Retry-After`.

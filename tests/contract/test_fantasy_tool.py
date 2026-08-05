@@ -308,6 +308,43 @@ async def test_exact_history_and_hydrated_detail_safety_boundaries() -> None:
 
 
 @pytest.mark.asyncio
+async def test_match_detail_hydration_concurrency_is_two() -> None:
+    class ConcurrencyClient(FantasyContractClient):
+        def __init__(self) -> None:
+            super().__init__()
+            self.active = 0
+            self.max_active = 0
+
+        async def get_player_matches(
+            self, _account_id: int, *, limit: int = 100, offset: int = 0
+        ) -> list[dict[str, Any]]:
+            if offset:
+                return []
+            return [
+                {"match_id": match_id, "start_time": 1783000000 + match_id, "leagueid": 10}
+                for match_id in range(1, 7)
+            ][:limit]
+
+        async def get_match(self, match_id: int) -> dict[str, Any]:
+            self.active += 1
+            self.max_active = max(self.max_active, self.active)
+            try:
+                await asyncio.sleep(0)
+                result = await super().get_match(1)
+                result["match_id"] = match_id
+                result["leagueid"] = 0
+                return result
+            finally:
+                self.active -= 1
+
+    fake = ConcurrencyClient()
+    payload = await invoke({"account_id": 101, "tournament_tiers": ["all"]}, fake)
+
+    assert payload["coverage"]["details_requested"] == 6
+    assert fake.max_active == 2
+
+
+@pytest.mark.asyncio
 async def test_tool_schema_annotations_description_and_resource_contract(
     tmp_path, monkeypatch
 ) -> None:

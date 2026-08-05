@@ -35,7 +35,7 @@ REFERENCE_URI = "opendota://fantasy/ti-2026/scoring"
 HISTORY_LIMIT = 500
 DETAIL_LIMIT = 200
 PAGE_SIZE = 100
-CONCURRENCY = 5
+CONCURRENCY = 2
 TORMENTOR_TYPES = {"CHAT_MESSAGE_MINIBOSS_KILL", "miniboss_kill", "tormentor_kill"}
 
 

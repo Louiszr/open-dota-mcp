@@ -37,7 +37,7 @@ in-memory FastMCP tool/resource contract tests, temporary cache stores, and stdi
 **Performance Goals**: Resolve a lineup from at most five completed team-history records and return
 exactly five compact players; return at most 100 fantasy maps (20 default); process newest history in bounded
 pages of at most 100 records; examine at most 500 history records and hydrate at most 200 unique
-match details with concurrency 5; stop once enough eligible maps are established or either fixed
+match details with concurrency 2; stop once enough eligible maps are established or either fixed
 budget is exhausted; issue no network request when reading scoring rules
 
 **Constraints**: Latest observed lineup, not authoritative current roster; positions inferred only
@@ -206,7 +206,7 @@ draft-analysis response or coupling lineup lookup to its patch/tier/report pagin
 3. Traverse the verified player-specific match history newest-first with `limit`/`offset` in source
    pages of at most 100 records, deduplicate IDs, and cheaply reject authoritative date mismatches.
    Examine at most 500 history records and hydrate at most 200 unique `/matches/{match_id}` records
-   with concurrency 5 until the requested post-filter count is met, history ends, caller cancellation
+   with concurrency 2 until the requested post-filter count is met, history ends, caller cancellation
    or deadline stops work, or either fixed internal budget is reached.
 4. Apply an unconditional professional-provenance gate before caller filters: require the hydrated
    match to carry a positive league ID that resolves to authoritative league metadata, with no
