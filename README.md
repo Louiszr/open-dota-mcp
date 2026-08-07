@@ -122,9 +122,19 @@ budget. Invalid, expired, non-finite, zero, negative, and repeatedly short guida
 immediate retry. Cancellation remains prompt, cache hits make no upstream request, and concurrent
 waiters do not create more retry sequences.
 
+Before each cache-miss attempt, the shared server client also spaces request starts proactively.
+The automatic rate is 0.9 requests/second without an API key and 4.5 requests/second with one,
+retaining 10% headroom under OpenDota's current 60/minute and 300/minute defaults. This gate covers
+all tools and retry attempts; cache hits bypass it. Fantasy match hydration remains at concurrency
+two so response latency can overlap without creating an uncontrolled request burst. Override the
+rate for a deployment with different limits using a positive finite
+`OPENDOTA_REQUESTS_PER_SECOND`. The gate is shared by one MCP server client, not across independent
+server processes or other programs using the same IP address or key.
+
 Configure these bounds with `OPENDOTA_MAX_ATTEMPTS`, `OPENDOTA_RETRY_BASE_DELAYS`,
 `OPENDOTA_RETRY_JITTER_RATIO`, `OPENDOTA_RETRY_DELAY_CAP`, `OPENDOTA_RETRY_DELAY_BUDGET`, and
-`OPENDOTA_RETRY_ELAPSED_BUDGET`. Exhausted errors identify the finite reason and include a safe
+`OPENDOTA_RETRY_ELAPSED_BUDGET`. Request pacing is configured separately with
+`OPENDOTA_REQUESTS_PER_SECOND`. Exhausted errors identify the finite reason and include a safe
 `retry_after_seconds` only when upstream supplied one; raw headers, bodies, URLs, credentials, and
 engine diagnostics are never public.
 

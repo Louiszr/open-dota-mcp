@@ -304,15 +304,28 @@ and [TI 2026 community guide](https://www.reddit.com/r/DotA2/comments/1vble84/fa
 **Decision**: Preserve public no-key access and optional secret API key. Reuse the existing safe-GET
 policy for eligible transport/408/429/5xx failures, honoring proxy `Retry-After`, finite jittered
 backoff, caller cancellation/deadline, and actionable exhaustion. Cache/deduplicate catalogs,
-history, and match details; limit hydration concurrency to 2.
+history, and match details; limit hydration concurrency to 2. In addition, serialize cache-miss
+attempt starts across the shared server client at a conservative automatic rate of 0.9 requests per
+second without a key or 4.5 with a key. Both rates retain 10% headroom under OpenDota's current
+60/minute and 300/minute defaults and may be overridden for another deployment with
+`OPENDOTA_REQUESTS_PER_SECOND`. Cache hits bypass the gate because they make no upstream request.
 
 **Rationale**: Current OpenDota defaults are 60 requests/minute and 3000/day without a key and 300
 requests/minute with a key, but deployments can vary and current core does not send `Retry-After`.
-Fan-out therefore needs bounded concurrency and caching, not hard-coded assumptions that guidance
-will exist.
+The Vici Gaming five-player/50-map run demonstrated why retry-only recovery is insufficient. Local
+cache metadata recorded 24 team-catalog pages, five player-history responses, 75 unique shared match
+details, and supporting catalogs. The run initially burst requests, then had an approximately
+100-second response gap consistent with exhausting the minute allowance and entering bounded
+backoff; total cold population spanned roughly 151 seconds. Reducing fantasy concurrency below two
+would not enforce the minute allowance because serial fast responses can still exceed it. A shared
+request-start rate gate prevents the burst while concurrency two still overlaps response latency.
+Multiple independent MCP server processes or other clients using the same IP/key remain responsible
+for sharing the upstream allowance.
 
-**Alternatives considered**: Retrying all 4xx errors, immediate retry, unbounded fan-out, or logging
-the API key are unsafe.
+**Alternatives considered**: Cutting fantasy concurrency to one lowers simultaneous work but does
+not bound starts per minute. Retrying all 4xx errors, immediate retry, unbounded fan-out, or logging
+the API key are unsafe. A distributed cross-process limiter would coordinate unrelated local
+processes but is not justified for the demonstrated single-server workflow.
 
 Primary sources: [OpenDota request handling](https://github.com/odota/core/blob/2d67379fbba90b2fd015c6f0f4080d394a5741e9/svc/web.ts#L413-L510)
 and [configuration defaults](https://github.com/odota/core/blob/2d67379fbba90b2fd015c6f0f4080d394a5741e9/config.ts#L58-L64).

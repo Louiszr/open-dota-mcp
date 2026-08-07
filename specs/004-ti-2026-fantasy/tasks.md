@@ -139,6 +139,10 @@
 - [X] T037 Have a sub-agent that performed no implementation audit all required public-surface and risk-based tests, then run `uv run ruff check .`, `uv run ruff format --check .`, and `uv run pytest`, requiring it to report all gates passing before completion in specs/004-ti-2026-fantasy/tasks.md
 - [X] T038 Add regression coverage and allow an explicit `version_pattern` to operate with an undated OpenDota patch catalog in tests/contract/test_fantasy_tool.py and src/open_dota_mcp/services/fantasy.py
 - [X] T039 Add regression coverage for OpenDota's nullable integer First Blood flags and map them to reliable true/false fantasy evidence in tests/unit/test_fantasy_mapping.py, tests/contract/test_fantasy_tool.py, and src/open_dota_mcp/services/fantasy.py
+- [X] T040 Add deterministic configuration and concurrent-request pacing regression coverage proving cache misses are spaced across one shared server client while cache hits remain immediate in tests/unit/test_config.py and tests/unit/test_opendota_client.py
+- [X] T041 Implement a configurable per-client OpenDota request-start rate gate with conservative automatic public/API-key defaults, cancellation-safe serialization, and retry-attempt coverage in src/open_dota_mcp/config.py and src/open_dota_mcp/clients/opendota.py
+- [X] T042 Document the Vici Gaming latency diagnosis, retained fantasy concurrency of two, proactive request-rate defaults, configuration override, cache-hit behavior, and per-server scope in specs/004-ti-2026-fantasy/research.md, specs/004-ti-2026-fantasy/plan.md, and README.md
+- [X] T043 Have a fresh non-implementing sub-agent audit the request-rate regression coverage and run `uv run ruff check .`, `uv run ruff format --check .`, and `uv run pytest`, requiring every gate to pass before completion in specs/004-ti-2026-fantasy/tasks.md
 
 ---
 

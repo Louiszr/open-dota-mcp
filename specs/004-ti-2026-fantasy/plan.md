@@ -38,7 +38,9 @@ in-memory FastMCP tool/resource contract tests, temporary cache stores, and stdi
 exactly five compact players; return at most 100 fantasy maps (20 default); process newest history in bounded
 pages of at most 100 records; examine at most 500 history records and hydrate at most 200 unique
 match details with concurrency 2; stop once enough eligible maps are established or either fixed
-budget is exhausted; issue no network request when reading scoring rules
+budget is exhausted; proactively space all cache-miss attempts across the shared server client at
+0.9 requests/second without a key or 4.5 with a key by default; issue no network request when
+reading scoring rules
 
 **Constraints**: Latest observed lineup, not authoritative current roster; positions inferred only
 from a clean parsed 2-1-2 lane distribution and distinct ten-minute side-lane farm; the match's
@@ -47,7 +49,9 @@ positions are null; post-filter newest-first fantasy limit; inclusive UTC dates;
 patch expressions; Tier 1 defaults to `premium`; no caller pagination; fixed non-configurable
 500-history-record and 200-match-detail budgets with explicit truncation reasons; explicit null/zero/false
 semantics; professional-league provenance is mandatory before all caller filters and `all` never
-includes pubs; no public-match input; no series or modifier inference; finite existing retry/deadline policy; protocol-only
+includes pubs; no public-match input; no series or modifier inference; finite existing
+retry/deadline policy; configurable proactive request rate with conservative automatic OpenDota
+defaults; protocol-only
 stdout; deterministic offline tests
 
 **Scale/Scope**: Two new tools and one static resource, one five-player lineup from a fixed

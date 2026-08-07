@@ -43,6 +43,7 @@ class OpenDotaClient:
         deadline: Callable[[], float | None] | None = None,
         cache_store: CacheStore | None = None,
         population_sleeper: Callable[[float], Awaitable[None]] = asyncio.sleep,
+        rate_sleeper: Callable[[float], Awaitable[None]] | None = None,
         lease_renewal_interval: float = 10.0,
     ) -> None:
         """Initialize a reusable asynchronous client.
@@ -57,6 +58,8 @@ class OpenDotaClient:
             deadline: Optional callable returning an absolute monotonic caller deadline.
             cache_store: Optional preconfigured persistent response store.
             population_sleeper: Injectable short cache-coordination sleeper.
+            rate_sleeper: Injectable proactive request-rate sleeper. Supplying one also enables
+                automatic-rate behavior with a custom transport for deterministic tests.
             lease_renewal_interval: Injectable population renewal cadence.
         """
         self.settings = settings or Settings.from_env()
@@ -82,7 +85,14 @@ class OpenDotaClient:
         self._jitter = jitter or (lambda upper: random.uniform(0.0, upper))
         self._deadline = deadline or (lambda: None)
         self._population_sleep = population_sleeper
+        self._rate_sleep = rate_sleeper or asyncio.sleep
         self._lease_renewal_interval = lease_renewal_interval
+        configured_rate = self.settings.request_rate_per_second
+        if configured_rate is None and (transport is None or rate_sleeper is not None):
+            configured_rate = 4.5 if self.settings.api_key else 0.9
+        self._request_interval = None if configured_rate is None else 1 / configured_rate
+        self._rate_lock = asyncio.Lock()
+        self._next_request_at = self._clock()
         self._cache = cache_store
         if self._cache is None and transport is None:
             try:
@@ -364,6 +374,7 @@ class OpenDotaClient:
                     reason=gate,
                 )
             try:
+                await self._wait_for_rate_slot(started)
                 response = await self._http.get(path, params=params)
                 if response.status_code not in _RETRYABLE_STATUS:
                     if response.is_error:
@@ -442,6 +453,32 @@ class OpenDotaClient:
             reason=exhaustion_reason,
             retry_after_seconds=advised_delay,
         )
+
+    async def _wait_for_rate_slot(self, started: float) -> None:
+        """Serialize cache-miss attempt starts at the configured process-local rate."""
+        if self._request_interval is None:
+            return
+        async with self._rate_lock:
+            now = self._clock()
+            slot_at = max(now, self._next_request_at)
+            delay = slot_at - now
+            deadline = self._deadline()
+            if now - started + delay >= self.settings.retry_elapsed_budget:
+                raise UpstreamError(
+                    "upstream_unavailable",
+                    "OpenDota request pacing exhausted the elapsed-time budget",
+                    retryable_later=True,
+                    reason="elapsed_budget",
+                )
+            if deadline is not None and now + delay >= deadline:
+                raise UpstreamError(
+                    "cancelled",
+                    "OpenDota request pacing could not finish before the caller deadline",
+                    reason="deadline",
+                )
+            if delay > 0:
+                await self._rate_sleep(delay)
+            self._next_request_at = max(slot_at, self._clock()) + self._request_interval
 
     async def _renew_population(self, identity: CacheIdentity, lease: PopulationLease) -> None:
         """Keep an owned population attempt alive during bounded upstream work."""
