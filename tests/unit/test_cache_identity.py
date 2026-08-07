@@ -65,3 +65,16 @@ def test_safe_description_is_bounded_and_omits_unreviewed_values() -> None:
     visible = identity.canonical_json + identity.safe_description
     assert "actual-secret" not in visible
     assert all(word not in visible for word in ["session", "package_version", "Authorization"])
+
+
+def test_player_history_identity_includes_public_paging_but_excludes_secret() -> None:
+    identity = build_identity(
+        source="https://api.opendota.com/api",
+        operation="get_player_matches",
+        path_inputs={"account_id": 101},
+        query_inputs={"limit": 100, "offset": 200, "api_key": "secret"},
+    )
+    assert '"account_id":101' in identity.canonical_json
+    assert '"limit":100' in identity.canonical_json
+    assert '"offset":200' in identity.canonical_json
+    assert "secret" not in identity.canonical_json

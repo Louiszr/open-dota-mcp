@@ -34,6 +34,68 @@ def normalize_identity(value: str) -> str:
     return re.sub(r"[^\w]+", " ", letters, flags=re.UNICODE).strip()
 
 
+def normalize_player_name(value: str) -> str:
+    """Normalize a professional name using the fantasy identity contract.
+
+    Args:
+        value: Caller query or professional catalog name.
+
+    Returns:
+        NFKC/casefolded text with punctuation and whitespace runs collapsed.
+    """
+    folded = unicodedata.normalize("NFKC", value).casefold()
+    return re.sub(r"[^\w]+", " ", folded, flags=re.UNICODE).strip()
+
+
+def resolve_professional_player(
+    query: str, professionals: list[dict[str, Any]]
+) -> Resolution[dict[str, Any]]:
+    """Resolve only a unique exact professional-name match.
+
+    Args:
+        query: Professional display-name selector.
+        professionals: OpenDota ``/proPlayers`` catalog.
+
+    Returns:
+        Unique selection or at most ten deterministic exact/substring candidates.
+    """
+    normalized = normalize_player_name(query)
+    if not normalized:
+        return Resolution(None, [], normalized)
+    records = [
+        item
+        for item in professionals
+        if _positive_integer(item.get("account_id"))
+        and normalize_player_name(str(item.get("name") or ""))
+    ]
+    exact = [
+        item for item in records if normalize_player_name(str(item.get("name") or "")) == normalized
+    ]
+    if len(exact) == 1:
+        return Resolution(exact[0], [], normalized)
+    candidates = exact or [
+        item for item in records if normalized in normalize_player_name(str(item.get("name") or ""))
+    ]
+    ranked = sorted(
+        candidates,
+        key=lambda item: (
+            normalize_player_name(str(item.get("name") or "")),
+            int(item["account_id"]),
+        ),
+    )[:10]
+    return Resolution(None, ranked, normalized)
+
+
+def professional_by_account_id(
+    account_id: int, professionals: list[dict[str, Any]]
+) -> dict[str, Any] | None:
+    """Return the exact positive professional account record when present."""
+    return next(
+        (item for item in professionals if _positive_integer(item.get("account_id")) == account_id),
+        None,
+    )
+
+
 def resolve_league(query: str, leagues: list[dict[str, Any]]) -> Resolution[dict[str, Any]]:
     """Resolve a league by normalized exact name or ranked substring.
 
@@ -140,3 +202,8 @@ def _team_rank(item: dict[str, Any], normalized: str) -> tuple[int, int, float, 
         name,
         int(item.get("team_id") or 0),
     )
+
+
+def _positive_integer(value: object) -> int | None:
+    """Return a strict positive integer without accepting booleans."""
+    return value if isinstance(value, int) and not isinstance(value, bool) and value > 0 else None

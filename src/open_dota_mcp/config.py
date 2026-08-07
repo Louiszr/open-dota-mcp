@@ -26,6 +26,7 @@ class Settings:
     retry_delay_cap: float = 40.0
     retry_delay_budget: float = 75.0
     retry_elapsed_budget: float = 90.0
+    request_rate_per_second: float | None = None
     snapshot_ttl_seconds: float = 1800.0
     snapshot_capacity: int = 32
     cache_dir: Path = field(default_factory=lambda: _default_cache_dir())
@@ -64,6 +65,7 @@ class Settings:
             retry_elapsed_budget=float(
                 os.getenv("OPENDOTA_RETRY_ELAPSED_BUDGET", defaults.retry_elapsed_budget)
             ),
+            request_rate_per_second=_optional_float(os.getenv("OPENDOTA_REQUESTS_PER_SECOND")),
             snapshot_ttl_seconds=float(
                 os.getenv("OPENDOTA_SNAPSHOT_TTL_SECONDS", defaults.snapshot_ttl_seconds)
             ),
@@ -106,6 +108,10 @@ class Settings:
             raise ValueError("retry_base_delays must contain positive finite values")
         if not isfinite(self.retry_jitter_ratio) or not 0 <= self.retry_jitter_ratio <= 1:
             raise ValueError("retry_jitter_ratio must be finite and between 0 and 1")
+        if self.request_rate_per_second is not None and (
+            not isfinite(self.request_rate_per_second) or self.request_rate_per_second <= 0
+        ):
+            raise ValueError("request_rate_per_second must be positive and finite")
         if self.cache_max_bytes < 65_536:
             raise ValueError("cache_max_bytes is too small for initialized storage")
         if not str(self.cache_dir):
@@ -127,3 +133,13 @@ def _float_tuple(raw: str) -> tuple[float, ...]:
         return tuple(float(value.strip()) for value in raw.split(",") if value.strip())
     except ValueError as exc:
         raise ValueError("OPENDOTA_RETRY_BASE_DELAYS must contain numbers") from exc
+
+
+def _optional_float(raw: str | None) -> float | None:
+    """Parse an optional floating-point environment setting."""
+    if raw is None or not raw.strip():
+        return None
+    try:
+        return float(raw)
+    except ValueError as exc:
+        raise ValueError("OPENDOTA_REQUESTS_PER_SECOND must be a number") from exc

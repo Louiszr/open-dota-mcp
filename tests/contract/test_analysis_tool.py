@@ -69,7 +69,7 @@ async def test_public_schema_annotations_and_description_document_bounded_contra
     fake = ContractClient()
     async with Client(create_server(client=fake)) as session:  # type: ignore[arg-type]
         tools = await session.list_tools()
-    assert len(tools) == 4
+    assert len(tools) == 6
     tool = next(value for value in tools if value.name == "analyze_pro_team_drafts")
     assert tool.annotations.readOnlyHint is True
     assert tool.annotations.destructiveHint is False

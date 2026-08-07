@@ -35,7 +35,10 @@ async def test_every_documented_get_method_and_unknown_fields_are_permissive() -
         assert await client.get_team(2) == {"id": 1, "unknown": {"future": True}}
         assert await client.get_team_matches(2) == []
         assert await client.get_pro_players() == []
+        assert await client.get_player_matches(7, limit=20, offset=40) == []
+        assert await client.get_team_players(2) == []
     assert any("/teams?page=4" in url for url in seen)
+    assert any("/players/7/matches?limit=20&offset=40" in url for url in seen)
 
 
 @pytest.mark.asyncio
@@ -70,12 +73,14 @@ async def test_all_operations_cache_before_shared_shape_validation(tmp_path) -> 
         await client.get_team(2)
         await client.get_team_matches(2)
         await client.get_pro_players()
+        await client.get_player_matches(7, limit=20, offset=40)
+        await client.get_team_players(2)
         first_calls = calls
         await client.get_match(1)
         await client.get_teams_page(4)
-    assert calls == first_calls == 9
+    assert calls == first_calls == 11
     entries = store.entries(limit=20).entries
-    assert len(entries) == 9
+    assert len(entries) == 11
     assert {
         entry.category for entry in entries if entry.operation in {"get_heroes", "get_patches"}
     } == {"long"}
@@ -84,6 +89,180 @@ async def test_all_operations_cache_before_shared_shape_validation(tmp_path) -> 
         for entry in entries
         if entry.operation not in {"get_heroes", "get_patches"}
     )
+
+
+@pytest.mark.asyncio
+async def test_concurrent_cache_misses_share_one_request_start_rate_gate() -> None:
+    now = {"value": 0.0}
+    starts: list[float] = []
+    waits: list[float] = []
+
+    async def handler(_request: httpx.Request) -> httpx.Response:
+        starts.append(now["value"])
+        await asyncio.sleep(0)
+        return httpx.Response(200, json=[])
+
+    async def rate_sleep(delay: float) -> None:
+        waits.append(delay)
+        now["value"] += delay
+
+    async with OpenDotaClient(
+        Settings(request_rate_per_second=2),
+        transport=httpx.MockTransport(handler),
+        clock=lambda: now["value"],
+        rate_sleeper=rate_sleep,
+    ) as client:
+        await asyncio.gather(
+            client.get_leagues(),
+            client.get_patches(),
+            client.get_pro_players(),
+        )
+
+    assert starts == [0.0, 0.5, 1.0]
+    assert waits == [0.5, 0.5]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("settings", "expected_delay"),
+    [
+        (Settings(), 1 / 0.9),
+        (Settings(api_key="secret"), 1 / 4.5),
+    ],
+)
+async def test_automatic_request_rates_keep_ten_percent_headroom(
+    settings: Settings, expected_delay: float
+) -> None:
+    now = {"value": 0.0}
+    waits: list[float] = []
+
+    async def rate_sleep(delay: float) -> None:
+        waits.append(delay)
+        now["value"] += delay
+
+    async with OpenDotaClient(
+        settings,
+        transport=httpx.MockTransport(lambda _request: httpx.Response(200, json=[])),
+        clock=lambda: now["value"],
+        rate_sleeper=rate_sleep,
+    ) as client:
+        await client.get_leagues()
+        await client.get_patches()
+
+    assert waits == [pytest.approx(expected_delay)]
+
+
+@pytest.mark.asyncio
+async def test_cache_hits_are_immediate_and_do_not_consume_rate_slots(tmp_path) -> None:
+    calls = 0
+    waits: list[float] = []
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        return httpx.Response(200, json=[])
+
+    async def rate_sleep(delay: float) -> None:
+        waits.append(delay)
+
+    store = CacheStore(tmp_path / "cache")
+    async with OpenDotaClient(
+        Settings(cache_dir=tmp_path / "cache", request_rate_per_second=1),
+        transport=httpx.MockTransport(handler),
+        cache_store=store,
+        rate_sleeper=rate_sleep,
+    ) as client:
+        assert await client.get_leagues() == []
+        assert await client.get_leagues() == []
+
+    assert calls == 1
+    assert waits == []
+
+
+@pytest.mark.asyncio
+async def test_retry_attempts_also_pass_through_request_start_rate_gate() -> None:
+    now = {"value": 0.0}
+    attempts = 0
+    rate_waits: list[float] = []
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        return httpx.Response(503 if attempts == 1 else 200, json=[])
+
+    async def retry_sleep(delay: float) -> None:
+        now["value"] += delay
+
+    async def rate_sleep(delay: float) -> None:
+        rate_waits.append(delay)
+        now["value"] += delay
+
+    async with OpenDotaClient(
+        Settings(
+            max_attempts=2,
+            retry_base_delays=(0.1,),
+            request_rate_per_second=2,
+        ),
+        transport=httpx.MockTransport(handler),
+        sleeper=retry_sleep,
+        rate_sleeper=rate_sleep,
+        clock=lambda: now["value"],
+        jitter=lambda _upper: 0,
+    ) as client:
+        assert await client.get_leagues() == []
+
+    assert attempts == 2
+    assert rate_waits == [pytest.approx(0.4)]
+
+
+@pytest.mark.asyncio
+async def test_cancellation_while_rate_queued_releases_gate_without_starting_request() -> None:
+    now = {"value": 0.0}
+    rate_sleep_started = asyncio.Event()
+    sleep_calls = 0
+    requested_paths: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requested_paths.append(request.url.path)
+        return httpx.Response(200, json=[])
+
+    async def rate_sleep(delay: float) -> None:
+        nonlocal sleep_calls
+        sleep_calls += 1
+        if sleep_calls == 1:
+            rate_sleep_started.set()
+            await asyncio.Event().wait()
+        now["value"] += delay
+
+    async with OpenDotaClient(
+        Settings(request_rate_per_second=1),
+        transport=httpx.MockTransport(handler),
+        clock=lambda: now["value"],
+        rate_sleeper=rate_sleep,
+    ) as client:
+        await client.get_leagues()
+        cancelled = asyncio.create_task(client.get_patches())
+        await rate_sleep_started.wait()
+        cancelled.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await cancelled
+        await client.get_pro_players()
+
+    assert requested_paths == ["/api/leagues", "/api/proPlayers"]
+    assert sleep_calls == 2
+
+
+@pytest.mark.asyncio
+async def test_new_operation_argument_validation() -> None:
+    async with OpenDotaClient(
+        transport=httpx.MockTransport(lambda _request: httpx.Response(200, json=[]))
+    ) as client:
+        with pytest.raises(ValueError):
+            await client.get_player_matches(0)
+        with pytest.raises(ValueError):
+            await client.get_player_matches(1, limit=101)
+        with pytest.raises(ValueError):
+            await client.get_team_players(0)
 
 
 @pytest.mark.asyncio

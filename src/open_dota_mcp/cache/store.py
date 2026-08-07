@@ -33,6 +33,8 @@ SUPPORTED_OPERATIONS = frozenset(
         "get_team",
         "get_team_matches",
         "get_pro_players",
+        "get_player_matches",
+        "get_team_players",
     }
 )
 
@@ -722,7 +724,9 @@ class CacheStore:
         operation: str | None,
         category: str | None,
     ) -> str:
-        token = secrets.token_urlsafe(32)
+        # A fixed alphanumeric prefix keeps a separately supplied argparse value from
+        # ever being mistaken for another option when token_urlsafe begins with "-".
+        token = f"c_{secrets.token_urlsafe(32)}"
         now = self._clock()
         with self._connect() as connection:
             connection.execute("DELETE FROM entry_cursors WHERE expires_at <= ?", (now,))

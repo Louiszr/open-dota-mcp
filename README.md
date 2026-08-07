@@ -1,8 +1,9 @@
 # OpenDota Professional Analysis MCP
 
 A local, read-only stdio MCP server for compact professional Dota 2 match discovery, ordered
-draft evidence, and team-relative drafting reports. It exposes exactly four tools and works
-without an API key by default.
+draft evidence, team-relative drafting reports, latest-observed lineups, and TI 2026 fantasy
+analysis. It exposes six tools and one static scoring resource and works without an API key by
+default.
 
 ## Install and verify
 
@@ -42,6 +43,33 @@ Restart Codex and use `/mcp` to confirm the server. Public operation sends no au
   evaluation timeout. `tournament_tiers` accepts distinct combinations of `premium`,
   `professional`, and `amateur`, or `all` by itself. Team-relative `side`, `result`, and
   `first_ban` filters combine with AND semantics.
+- `get_pro_team_roster`: select one professional team by stable ID or normalized name/tag. The
+  fixed scan considers only the newest five completed records and returns exactly five account IDs
+  only when the first usable parsed lineup equals the five records explicitly marked current by
+  OpenDota. A mismatch stops immediately because it may indicate a stand-in or roster change.
+  Positions are match-derived and nullable: only a clean 2-1-2 distribution with distinct
+  ten-minute farm supports positions 1–5. The result is a latest-observed lineup, not an
+  authoritative current roster.
+- `get_pro_player_fantasy`: select one professional by positive Steam32 account ID or normalized
+  exact name. The slim default returns compact context and all nullable raw TI 2026 fantasy inputs
+  for league-verified professional maps only; there is no pub/provenance bypass. `match_count`
+  defaults to 20 and allows 1–100 after all filters. Omitted patch selects the latest dated catalog
+  patch; full-string patch expressions, inclusive UTC dates, and `premium`, `professional`,
+  `amateur`, or exclusive `all` tiers combine with AND semantics. Add
+  `include=["fantasy_scoring"]` for exactly 18 pre-modifier scores. The fixed collector examines
+  at most 500 player-history records and hydrates at most 200 unique details, then reports
+  limit-specific truncation or terminal history exhaustion. Public and unverified matches are
+  rejected before filters and the returned count.
+
+Read `opendota://fantasy/ti-2026/scoring` for the installed, network-free `ti-2026-v1` formulas,
+five quality multipliers, frozen trait/title inventory, evidence status, direct sources, and
+aggregation rules. Historical tool results contain observed raw evidence and pre-modifier scores
+only. Apply a candidate emblem/quality/trait/title/banner configuration retrospectively and label
+the result a counterfactual projection. For every confirmed series, sum the two best maps and use
+the best confirmed-series sum for the stage; null-series maps remain visible but ungrouped. Both
+selected Core players contribute to their shared banner, as do both selected Support players.
+Unknown modifier effects stay uncertain, and the server deliberately provides no optimizer or
+historical-loadout claim.
 
 The report's slim default contains resolved team/filter context, aggregate `examined`/`parsed`/
 `unparsed` coverage, and compact match outcomes including opponent IDs. Add any distinct subset of
@@ -71,6 +99,8 @@ Successful OpenDota GET responses are retained in an owner-only SQLite cache acr
 processes and restarts. Most responses have a fixed 15-minute lifetime; heroes, patches, and
 confirmed parsed matches have a fixed one-day lifetime. Hits never extend expiry, failures are not
 stored, and cache failures fall back to ordinary upstream behavior without serving stale data.
+Player-match history and team-player membership reads use that existing 15-minute short policy;
+the fantasy feature introduces no new cache category or lifetime.
 
 The cache defaults to the platform user-cache directory and a retained main-database maximum of
 1 GiB. Override these with `OPENDOTA_CACHE_DIR` and `OPENDOTA_CACHE_MAX_BYTES`. Inspect bounded,
@@ -92,9 +122,19 @@ budget. Invalid, expired, non-finite, zero, negative, and repeatedly short guida
 immediate retry. Cancellation remains prompt, cache hits make no upstream request, and concurrent
 waiters do not create more retry sequences.
 
+Before each cache-miss attempt, the shared server client also spaces request starts proactively.
+The automatic rate is 0.9 requests/second without an API key and 4.5 requests/second with one,
+retaining 10% headroom under OpenDota's current 60/minute and 300/minute defaults. This gate covers
+all tools and retry attempts; cache hits bypass it. Fantasy match hydration remains at concurrency
+two so response latency can overlap without creating an uncontrolled request burst. Override the
+rate for a deployment with different limits using a positive finite
+`OPENDOTA_REQUESTS_PER_SECOND`. The gate is shared by one MCP server client, not across independent
+server processes or other programs using the same IP address or key.
+
 Configure these bounds with `OPENDOTA_MAX_ATTEMPTS`, `OPENDOTA_RETRY_BASE_DELAYS`,
 `OPENDOTA_RETRY_JITTER_RATIO`, `OPENDOTA_RETRY_DELAY_CAP`, `OPENDOTA_RETRY_DELAY_BUDGET`, and
-`OPENDOTA_RETRY_ELAPSED_BUDGET`. Exhausted errors identify the finite reason and include a safe
+`OPENDOTA_RETRY_ELAPSED_BUDGET`. Request pacing is configured separately with
+`OPENDOTA_REQUESTS_PER_SECOND`. Exhausted errors identify the finite reason and include a safe
 `retry_after_seconds` only when upstream supplied one; raw headers, bodies, URLs, credentials, and
 engine diagnostics are never public.
 
